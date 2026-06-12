@@ -135,9 +135,16 @@ class PDFToPPTXConverter:
         self.root.geometry("650x550")
         self.root.resizable(False, False)
         
-        # Настройка стиля под macOS
+        # Настройка стиля (кроссплатформенная)
         self.style = ttk.Style()
-        self.style.theme_use('aqua')
+        # Используем доступную тему вместо 'aqua' (только для macOS)
+        available_themes = self.style.theme_names()
+        if sys.platform == "darwin" and 'aqua' in available_themes:
+            self.style.theme_use('aqua')
+        elif 'clam' in available_themes:
+            self.style.theme_use('clam')
+        else:
+            self.style.theme_use('default')
         
         self.pdf_paths = []  # Поддержка нескольких файлов
         self.is_converting = False
