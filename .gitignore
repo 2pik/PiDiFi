@@ -1,1 +1,27 @@
-Nothing should be ignored based on the provided file changes. The only modified file is `build_dmg.sh`, which appears to be a shell script for building a DMG file and does not represent a build artifact, dependency, or temporary file that should be ignored.
+```
+# Build artifacts and temporary build directories
+build/
+build_temp/
+build_installer/
+dmg_contents/
+
+# Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# macOS specific
+.DS_Store
+*.app/
+
+# Installer scripts and bundles
+*.dmg
+*.pkg
+*.deb
+*.rpm
+
+# Temporary files
+*.tmp
+*.temp
+```
