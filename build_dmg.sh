@@ -204,11 +204,12 @@ else
     echo "   Приложение будет работать только при наличии интернета для установки зависимостей"
 fi
 
-# Создание иконки без внешних зависимостей
+# Создание иконки без внешних зависимостей (чистый bash/python без импортов)
 echo "🎨 Создание иконки приложения..."
 python3 << 'ICON_SCRIPT'
 import struct
 import zlib
+import os
 
 def create_minimal_png(filename):
     """Создает минимальный PNG файл 512x512 с простым дизайном"""
@@ -250,16 +251,15 @@ def create_minimal_png(filename):
         f.write(png_signature + ihdr_chunk + idat_chunk + iend_chunk)
 
 try:
-    import os
     os.makedirs('./build/PDFToPPTXConverter.app/Contents/Resources', exist_ok=True)
     create_minimal_png('./build/PDFToPPTXConverter.app/Contents/Resources/AppIcon.png')
     print("✅ Иконка создана без внешних зависимостей")
 except Exception as e:
     print(f"⚠️  Не удалось создать иконку: {e}")
-    import os
     os.makedirs('./build/PDFToPPTXConverter.app/Contents/Resources', exist_ok=True)
-    with open('./build/PDFToPPTXConverter.app/Contents/Resources/AppIcon.png', 'w') as f:
-        f.write('')
+    # Создаем пустой файл-заглушку
+    with open('./build/PDFToPPTXConverter.app/Contents/Resources/AppIcon.png', 'wb') as f:
+        f.write(b'')
     print("⚠️  Создан файл-заглушка для иконки")
 ICON_SCRIPT
 

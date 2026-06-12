@@ -3,19 +3,24 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
 PYTHON_SCRIPT="$SCRIPT_DIR/pdf_to_pptx_gui.py"
+OFFLINE_DEPS_DIR="$SCRIPT_DIR/offline_deps"
 
 # Проверка наличия Python 3
 if ! command -v python3 &> /dev/null; then
-    osascript -e 'display dialog "Ошибка: Python 3 не найден.\n\nПожалуйста, установите Python 3 с сайта python.org или через Homebrew:\nbrew install python3" buttons {"OK"} default button 1 with icon stop'
+    echo "❌ Ошибка: Python 3 не найден."
+    echo ""
+    echo "Пожалуйста, установите Python 3 с сайта python.org или через Homebrew:"
+    echo "brew install python3"
     exit 1
 fi
 
-# Проверка зависимостей
+# Функция проверки модуля
 check_module() {
     python3 -c "import $1" 2>/dev/null
     return $?
 }
 
+# Проверка зависимостей
 MISSING_MODULES=""
 if ! check_module fitz; then
     MISSING_MODULES="$MISSING_MODULES PyMuPDF"
@@ -27,15 +32,36 @@ if ! check_module PIL; then
     MISSING_MODULES="$MISSING_MODULES Pillow"
 fi
 
-if [ -n "" ]; then
-    echo "❌ Ошибка: Отсутствуют необходимые модули:"
-    echo ""
-    echo "Установите их командой:"
-    echo "pip3 install"
-    echo ""
-    echo "Или используйте requirements.txt:"
-    echo "pip3 install -r requirements.txt"
-    exit 1
+# Если есть отсутствующие модули, пробуем установить из offline_deps
+if [ -n "$MISSING_MODULES" ]; then
+    echo "⚠️  Отсутствуют модули:$MISSING_MODULES"
+    
+    if [ -d "$OFFLINE_DEPS_DIR" ] && [ "$(ls -A $OFFLINE_DEPS_DIR/*.whl 2>/dev/null)" ]; then
+        echo "📦 Попытка установки из локальных wheel файлов..."
+        python3 "$SCRIPT_DIR/offline_installer.py"
+        
+        # Повторная проверка
+        MISSING_MODULES=""
+        if ! check_module fitz; then
+            MISSING_MODULES="$MISSING_MODULES PyMuPDF"
+        fi
+        if ! check_module pptx; then
+            MISSING_MODULES="$MISSING_MODULES python-pptx"
+        fi
+        if ! check_module PIL; then
+            MISSING_MODULES="$MISSING_MODULES Pillow"
+        fi
+        
+        if [ -n "$MISSING_MODULES" ]; then
+            osascript -e "display dialog \"Не удалось установить зависимости. Пожалуйста, запустите приложение с интернетом или установите зависимости вручную:\npip3 install -r requirements.txt\" buttons {\"OK\"} default button 1 with icon stop"
+            exit 1
+        fi
+        echo "✅ Зависимости установлены из offline_deps"
+    else
+        osascript -e "display dialog \"Отсутствуют необходимые модули:$MISSING_MODULES\n\nУстановите их командой:\npip3 install -r requirements.txt\n\nИли скачайте зависимости заранее и поместите в папку offline_deps\" buttons {\"OK\"} default button 1 with icon stop"
+        exit 1
+    fi
+fi
 
 # Запуск основного скрипта
 exec python3 "$PYTHON_SCRIPT" "$@"
