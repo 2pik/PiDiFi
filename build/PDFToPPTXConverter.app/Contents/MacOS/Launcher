@@ -28,9 +28,6 @@ fi
 if ! check_module pptx; then
     MISSING_MODULES="$MISSING_MODULES python-pptx"
 fi
-if ! check_module PIL; then
-    MISSING_MODULES="$MISSING_MODULES Pillow"
-fi
 
 # Если есть отсутствующие модули, пробуем установить из offline_deps
 if [ -n "$MISSING_MODULES" ]; then
@@ -47,9 +44,6 @@ if [ -n "$MISSING_MODULES" ]; then
         fi
         if ! check_module pptx; then
             MISSING_MODULES="$MISSING_MODULES python-pptx"
-        fi
-        if ! check_module PIL; then
-            MISSING_MODULES="$MISSING_MODULES Pillow"
         fi
         
         if [ -n "$MISSING_MODULES" ]; then
