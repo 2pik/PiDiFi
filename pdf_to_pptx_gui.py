@@ -154,11 +154,14 @@ class PDFToPPTXConverter:
         self.create_widgets()
     
     def create_widgets(self):
+        # Настройка конфигурации grid для главного окна
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+        
         # Основной контейнер с отступами
         main_frame = ttk.Frame(self.root, padding="20")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(0, weight=1)
         
         # Заголовок
         title_label = ttk.Label(
