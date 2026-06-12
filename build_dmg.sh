@@ -25,6 +25,18 @@ PYTHON_CMD="python3"
 echo "📦 Создание установочного DMG файла..."
 echo "   Директория скрипта: ${SCRIPT_DIR}"
 
+# ПРОВЕРКА наличия всех необходимых файлов
+echo "🔍 Проверка необходимых файлов..."
+REQUIRED_FILES=("pdf_to_pptx_gui.py" "offline_installer.py" "requirements.txt")
+for file in "${REQUIRED_FILES[@]}"; do
+    if [ ! -f "${SCRIPT_DIR}/${file}" ]; then
+        echo "❌ Ошибка: Файл '${file}' не найден в ${SCRIPT_DIR}"
+        echo "   Убедитесь, что все файлы проекта находятся в той же директории, что и build_dmg.sh"
+        exit 1
+    fi
+done
+echo "✅ Все необходимые файлы найдены"
+
 # Очистка предыдущей сборки
 echo "🧹 Очистка предыдущей сборки..."
 rm -rf "$BUILD_DIR"
