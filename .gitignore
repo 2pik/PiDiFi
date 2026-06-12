@@ -1,24 +1,14 @@
 ```
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.ENV
-.python-version
-.python_history
-
 # Build artifacts
 build/
-dist/
-*.egg-info/
+*.app
+*.dmg
 
-# Logs
-*.log
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
 
 # Environment
 .env
@@ -30,24 +20,18 @@ dist/
 .idea/
 *.swp
 *.swo
-*.tmp
+
+# Logs
+*.log
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Coverage
-.coverage
-htmlcov/
-coverage/
+# Temp files
+*.tmp
 
-# MyPy
-.mypy_cache/
-
-# PyTest
-.pytest_cache/
-
-# Compressed files
+# Compression
 *.zip
 *.gz
 *.tar
