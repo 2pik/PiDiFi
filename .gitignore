@@ -1,1 +1,38 @@
-Nothing needs to be added to the .gitignore file based on the provided changes. The modification of 'build_dmg.sh' does not introduce any new files that should be ignored according to the specified rules.
+```
+# Compiled Python files
+*.pyc
+__pycache__/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Editors/IDE
+.vscode/
+.idea/
+
+# Dependencies
+.venv/
+venv/
+node_modules/
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# Python cache
+.mypy_cache/
+.pytest_cache/
+```
