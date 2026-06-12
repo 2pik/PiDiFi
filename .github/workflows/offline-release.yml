@@ -1,0 +1,104 @@
+name: Offline Release Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+        default: '2.0.0'
+
+jobs:
+  build-offline-package:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        
+    - name: Download all dependencies
+      run: |
+        chmod +x bundle_deps.sh
+        ./bundle_deps.sh
+        
+    - name: Verify offline deps
+      run: |
+        echo "📦 Files in offline_deps:"
+        ls -la offline_deps/ || echo "No files found"
+        echo "📊 Total size:"
+        du -sh offline_deps/ || echo "Directory not found"
+        
+    - name: Create offline package
+      run: |
+        PACKAGE_NAME="PDFToPPTXConverter-offline-v${{ github.event.inputs.version }}"
+        mkdir -p "$PACKAGE_NAME"
+        
+        # Copy all necessary files
+        cp *.py *.sh *.md requirements.txt "$PACKAGE_NAME/" || true
+        if [ -d "offline_deps" ]; then
+          cp -r offline_deps "$PACKAGE_NAME/"
+        fi
+        
+        # Create zip archive
+        zip -r "${PACKAGE_NAME}.zip" "$PACKAGE_NAME"
+        
+        echo "✅ Package created: ${PACKAGE_NAME}.zip"
+        echo "📦 Size: $(du -h ${PACKAGE_NAME}.zip | cut -f1)"
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: PDFToPPTXConverter-offline-v${{ github.event.inputs.version }}
+        path: PDFToPPTXConverter-offline-v${{ github.event.inputs.version }}.zip
+        retention-days: 30
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: PDFToPPTXConverter-offline-v${{ github.event.inputs.version }}.zip
+        body: |
+          ## 📦 Офлайн-установщик PDFToPPTXConverter v${{ github.event.inputs.version }}
+          
+          Этот пакет содержит все необходимые зависимости для установки **без интернета**.
+          
+          ### 🚀 Быстрая установка
+          
+          ```bash
+          # 1. Распакуйте архив
+          unzip PDFToPPTXConverter-offline-v${{ github.event.inputs.version }}.zip
+          cd PDFToPPTXConverter-offline-v${{ github.event.inputs.version }}
+          
+          # 2. Установите зависимости (работает без интернета!)
+          python3 offline_installer.py
+          
+          # 3. Запустите приложение
+          python3 pdf_to_pptx_gui.py
+          
+          # Или создайте DMG для удобной установки
+          bash build_dmg.sh
+          ```
+          
+          ### 📋 Что внутри
+          
+          - ✅ PyMuPDF — обработка PDF
+          - ✅ python-pptx — создание PowerPoint
+          - ✅ Pillow — работа с изображениями
+          - ✅ Все зависимости для macOS ARM64 и x86_64
+          
+          ### 💾 Размер пакета
+          
+          ~100-150 МБ (включая wheel-файлы для Apple Silicon и Intel Mac)
+          
+          ### 📖 Документация
+          
+          - [QUICK_START.md](https://github.com/USERNAME/pdf-to-pptx-converter/blob/main/QUICK_START.md) — быстрый старт
+          - [OFFLINE_INSTALL.md](https://github.com/USERNAME/pdf-to-pptx-converter/blob/main/OFFLINE_INSTALL.md) — подробная инструкция
+          - [README_RU.md](https://github.com/USERNAME/pdf-to-pptx-converter/blob/main/README_RU.md) — основная документация
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

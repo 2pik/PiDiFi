@@ -1,0 +1,106 @@
+name: build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['*']
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: set up python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+          pip3 install pytest flake8
+
+      - name: check dependencies
+        run: |
+          python3 -c "import fitz; print('PyMuPDF:', fitz.__version__)"
+          python3 -c "from pptx import Presentation; print('python-pptx installed')"
+          python3 -c "from PIL import Image; print('Pillow installed')"
+
+      - name: lint
+        run: |
+          flake8 pdf_to_pptx_gui.py --max-line-length=120 --ignore=E501,W503 || true
+
+      - name: test
+        run: |
+          python3 -m pytest test_pdf_converter.py -v || python3 test_pdf_converter.py
+
+  build-macos:
+    needs: test
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: set up python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+
+      - name: build dmg
+        run: |
+          chmod +x build_dmg.sh
+          ./build_dmg.sh
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDFToPPTXConverter-dmg
+          path: "*.dmg"
+          retention-days: 30
+
+  release:
+    needs: build-macos
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: PDFToPPTXConverter-dmg
+          path: ./release
+
+      - name: create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./release/*.dmg
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
