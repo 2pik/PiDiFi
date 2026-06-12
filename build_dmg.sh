@@ -13,6 +13,9 @@ DMG_FILE="${APP_NAME}-v${VERSION}.dmg"
 VOLUME_NAME="${APP_NAME} v${VERSION}"
 OFFLINE_DEPS_DIR="./offline_deps"
 
+# Определяем путь к Python
+PYTHON_CMD="python3"
+
 echo "📦 Создание установочного DMG файла..."
 
 # Очистка предыдущей сборки
@@ -22,7 +25,7 @@ rm -f "$DMG_FILE"
 
 # Функция проверки модуля
 check_module() {
-    python3 -c "import $1" 2>/dev/null
+    $PYTHON_CMD -c "import $1" 2>/dev/null
     return $?
 }
 
@@ -263,17 +266,28 @@ except Exception as e:
     print("⚠️  Создан файл-заглушка для иконки")
 ICON_SCRIPT
 
-# Создание DMG
+# Создание DMG (только на macOS)
 echo "💿 Создание DMG образа..."
-hdiutil create -volname "$VOLUME_NAME" \
-    -srcfolder "$BUILD_DIR" \
-    -ov -format UDZO "$DMG_FILE"
-
-echo ""
-echo "✅ Готово!"
-echo "📦 Установочный файл: $DMG_FILE"
-echo ""
-echo "Для установки:"
-echo "1. Откройте $DMG_FILE"
-echo "2. Перетащите ${APP_NAME}.app в папку Applications"
-echo ""
+if command -v hdiutil &> /dev/null; then
+    hdiutil create -volname "$VOLUME_NAME" \
+        -srcfolder "$BUILD_DIR" \
+        -ov -format UDZO "$DMG_FILE"
+    
+    echo ""
+    echo "✅ Готово!"
+    echo "📦 Установочный файл: $DMG_FILE"
+    echo ""
+    echo "Для установки:"
+    echo "1. Откройте $DMG_FILE"
+    echo "2. Перетащите ${APP_NAME}.app в папку Applications"
+    echo ""
+else
+    echo "⚠️  hdiutil не найден (доступен только на macOS)"
+    echo ""
+    echo "✅ Структура приложения готова: $APP_BUNDLE"
+    echo ""
+    echo "Для запуска приложения:"
+    echo "  python3 pdf_to_pptx_gui.py"
+    echo ""
+    echo "Или скопируйте ${APP_NAME}.app в любое место и запустите двойным кликом."
+fi
