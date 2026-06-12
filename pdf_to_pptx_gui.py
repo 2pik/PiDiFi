@@ -6,12 +6,12 @@ PDF to PPTX Converter for macOS
 Использует только стандартные библиотеки macOS
 Извлекает текст как текст, изображения как изображения
 
-Версия: 2.1.0 (Оптимизированная)
-Оптимизации:
-- Уменьшено потребление памяти на 40%
-- Ускорена обработка изображений на 60%
-- Оптимизировано обновление UI
-- Добавлено кэширование параметров
+Версия: 2.2.0 (Без PIL)
+Изменения:
+- Удалена зависимость от PIL/Pillow
+- Изображения извлекаются в оригинальном формате из PDF
+- Используется встроенная обработка изображений PyMuPDF
+- Стандартная иконка приложения
 """
 
 import sys
@@ -75,11 +75,6 @@ def check_dependencies():
     except ImportError:
         missing.append("python-pptx")
     
-    try:
-        from PIL import Image
-    except ImportError:
-        missing.append("Pillow")
-    
     if missing:
         return False, missing
     return True, []
@@ -103,7 +98,6 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
-from PIL import Image
 
 # Инициализация SUPPORTED_ORIENTATIONS после импорта Inches
 SUPPORTED_ORIENTATIONS = {
@@ -582,20 +576,6 @@ class PDFToPPTXConverter:
                 img_data = page.parent.extract_image(xref)
                 if img_data:
                     img_bytes = img_data["image"]
-                    
-                    # Оптимизация изображения (сжатие при необходимости)
-                    try:
-                        img = Image.open(io.BytesIO(img_bytes))
-                        if img.mode in ('RGBA', 'LA', 'P'):
-                            img = img.convert('RGB')
-                        
-                        # Сжатие JPEG с качеством 85% и уменьшением размера
-                        output = io.BytesIO()
-                        img.save(output, format='JPEG', quality=85, optimize=True, progressive=True)
-                        img_bytes = output.getvalue()
-                        del img, output
-                    except Exception:
-                        pass
                     
                     # Добавляем изображение
                     slide.shapes.add_picture(
