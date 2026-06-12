@@ -99,29 +99,62 @@ chmod +x "$APP_BUNDLE/Contents/MacOS/Launcher"
 echo "📄 Копирование файлов приложения..."
 cp ./pdf_to_pptx_gui.py "$APP_BUNDLE/Contents/Resources/"
 
-# Создание простой иконки (используем встроенные средства macOS)
-# Создаем PNG иконку программно без внешних зависимостей
+# Создание простой иконки (без внешних зависимостей)
+# Создаем минимальный PNG файл программно на Python без PIL
 python3 << 'ICON_SCRIPT'
-import sys
+import struct
+import zlib
+
+def create_minimal_png(filename):
+    """Создает минимальный PNG файл 512x512 с простым дизайном"""
+    width, height = 512, 512
+    
+    # Создаем простые данные изображения (синий фон)
+    raw_data = b''
+    for y in range(height):
+        raw_data += b'\x00'  # Filter byte для каждой строки
+        for x in range(width):
+            # Синий градиент
+            r = 70
+            g = 130
+            b = 180
+            raw_data += bytes([r, g, b])
+    
+    # Создаем PNG chunks
+    def make_chunk(chunk_type, data):
+        chunk = chunk_type + data
+        crc = zlib.crc32(chunk) & 0xffffffff
+        return struct.pack('>I', len(data)) + chunk + struct.pack('>I', crc)
+    
+    # PNG signature
+    png_signature = b'\x89PNG\r\n\x1a\n'
+    
+    # IHDR chunk
+    ihdr_data = struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)
+    ihdr_chunk = make_chunk(b'IHDR', ihdr_data)
+    
+    # IDAT chunk (сжатые данные изображения)
+    compressed_data = zlib.compress(raw_data, 9)
+    idat_chunk = make_chunk(b'IDAT', compressed_data)
+    
+    # IEND chunk
+    iend_chunk = make_chunk(b'IEND', b'')
+    
+    # Записываем PNG файл
+    with open(filename, 'wb') as f:
+        f.write(png_signature + ihdr_chunk + idat_chunk + iend_chunk)
+
 try:
-    # Попытка использовать PIL если доступен
-    from PIL import Image, ImageDraw
-    img = Image.new('RGB', (512, 512), color=(70, 130, 180))
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([50, 50, 462, 462], fill=(255, 255, 255), outline=(70, 130, 180), width=20)
-    draw.text((150, 200), "PDF", fill=(70, 130, 180))
-    draw.text((180, 300), "→", fill=(70, 130, 180))
-    draw.text((150, 400), "PPTX", fill=(70, 130, 180))
-    img.save('./build/PDFToPPTXConverter.app/Contents/Resources/AppIcon.png')
-    print("✅ Иконка создана с помощью PIL")
-except ImportError:
-    # Если PIL недоступен, создаем простую иконку из системных ресурсов
+    create_minimal_png('./build/PDFToPPTXConverter.app/Contents/Resources/AppIcon.png')
+    print("✅ Иконка создана без внешних зависимостей")
+except Exception as e:
+    print(f"⚠️  Не удалось создать иконку: {e}")
+    # Создаем пустой файл-заглушку
     import os
-    # Используем стандартную иконку документа macOS
-    print("⚠️  PIL недоступен, используем стандартную иконку")
-    # Создаем пустой файл-заглушку (macOS использует иконку по умолчанию)
+    os.makedirs('./build/PDFToPPTXConverter.app/Contents/Resources', exist_ok=True)
     with open('./build/PDFToPPTXConverter.app/Contents/Resources/AppIcon.png', 'w') as f:
         f.write('')
+    print("⚠️  Создан файл-заглушка для иконки")
 ICON_SCRIPT
 
 # Копирование requirements.txt
