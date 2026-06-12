@@ -95,8 +95,32 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
+# Функция проверки импорта модулей (без tkinter для серверной среды)
+check_imports() {
+    # Проверяем основные модули (fitz, pptx, PIL) - они критичны
+    python3 -c "import fitz; import pptx; from PIL import Image" 2>/dev/null
+    CORE_OK=$?
+    
+    # Если это macOS с GUI, проверяем и tkinter
+    if [[ "$(uname)" == "Darwin" ]]; then
+        python3 -c "import customtkinter" 2>/dev/null
+        TK_OK=$?
+        if [ $CORE_OK -eq 0 ] && [ $TK_OK -eq 0 ]; then
+            return 0
+        elif [ $CORE_OK -eq 0 ]; then
+            # Core модули есть, но нет tkinter - пробуем установить
+            return 1
+        else
+            return 1
+        fi
+    else
+        # Для Linux/серверов проверяем только core модули
+        return $CORE_OK
+    fi
+}
+
 # Проверка и установка зависимостей при необходимости
-if ! python3 -c "import customtkinter, fitz, pptx, PIL" 2>/dev/null; then
+if ! check_imports; then
     RESULT=$(osascript -e 'display dialog "Приложению необходимо установить зависимости Python.\n\nТребуется ~50MB свободного места.\n\nУстановить сейчас?" buttons {"Отмена", "Установить"} default button 2 with icon note' -e 'button returned of result')
     
     if [ "$RESULT" = "Установить" ]; then

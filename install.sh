@@ -71,10 +71,36 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 # Проверка и установка зависимостей при необходимости
-if ! python3 -c "import customtkinter, fitz, pptx, PIL" 2>/dev/null; then
+check_imports() {
+    # Проверяем основные модули (fitz, pptx, PIL) - они критичны
+    python3 -c "import fitz; import pptx; from PIL import Image" 2>/dev/null
+    CORE_OK=$?
+    
+    # Если это macOS с GUI, проверяем и tkinter
+    if [[ "$(uname)" == "Darwin" ]]; then
+        python3 -c "import customtkinter" 2>/dev/null
+        TK_OK=$?
+        if [ $CORE_OK -eq 0 ] && [ $TK_OK -eq 0 ]; then
+            return 0
+        elif [ $CORE_OK -eq 0 ]; then
+            # Core модули есть, но нет tkinter - пробуем установить
+            return 1
+        else
+            return 1
+        fi
+    else
+        # Для Linux/серверов проверяем только core модули
+        return $CORE_OK
+    fi
+}
+
+if ! check_imports; then
     echo "📦 Установка зависимостей..."
     pip3 install --quiet --upgrade pip
-    pip3 install --quiet -r "$RESOURCES/requirements.txt"
+    if ! pip3 install --quiet -r "$RESOURCES/requirements.txt"; then
+        osascript -e 'display dialog "Не удалось автоматически установить зависимости.\n\nПожалуйста, установите вручную:\npip3 install -r requirements.txt" buttons {"OK"} default button 1 with icon stop'
+        exit 1
+    fi
 fi
 
 # Запуск приложения
