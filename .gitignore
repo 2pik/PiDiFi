@@ -1,13 +1,1 @@
-```
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Build artifacts
-build/
-
-# Logs
-*.log
-```
+Nothing should be ignored based on the provided file changes, as they consist only of source/config files (.md and .sh).
