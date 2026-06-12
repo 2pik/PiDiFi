@@ -90,6 +90,16 @@ if ! command -v python3 &> /dev/null; then
 fi
 ```
 
+### 5. Обновлены ссылки GitHub
+**Проблема:** В документации использовался плейсхолдер `YOUR_USERNAME`
+
+**Исправление:** Заменено на `USERNAME` для указания пользователю необходимости заменить на свой ник
+
+**Файлы:** README.md, README_EN.md, README_RU.md, REPORT.md
+
+### 6. Убраны упоминания автора
+Удалены фразы типа "Сделано с ❤️" чтобы пользователь мог добавить свое собственное сообщение об авторстве.
+
 ---
 
 ## 📁 Финальная структура проекта
@@ -148,7 +158,7 @@ git add .
 git commit -m "PDF to PPTX Converter v1.0 - Исправлены ошибки импорта"
 
 # 2. Создание репозитория на GitHub и push
-git remote add origin https://github.com/YOUR_USERNAME/pdf-to-pptx-converter.git
+git remote add origin https://github.com/USERNAME/pdf-to-pptx-converter.git
 git push -u origin main
 
 # 3. На macOS собрать DMG
