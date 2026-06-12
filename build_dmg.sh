@@ -10,6 +10,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Экспортируем SCRIPT_DIR для использования в Python-скриптах
+export SCRIPT_DIR
+
 APP_NAME="PDFToPPTXConverter"
 VERSION="2.2.0"
 BUILD_DIR="./build_installer"
@@ -183,14 +186,14 @@ chmod +x "$APP_BUNDLE/Contents/MacOS/Launcher"
 
 # Копирование основного скрипта и офлайн-установщика
 echo "📄 Копирование файлов приложения..."
-cp ./pdf_to_pptx_gui.py "$APP_BUNDLE/Contents/Resources/"
-cp ./requirements.txt "$APP_BUNDLE/Contents/Resources/"
-cp ./offline_installer.py "$APP_BUNDLE/Contents/Resources/"
+cp "$SCRIPT_DIR/pdf_to_pptx_gui.py" "$APP_BUNDLE/Contents/Resources/"
+cp "$SCRIPT_DIR/requirements.txt" "$APP_BUNDLE/Contents/Resources/"
+cp "$SCRIPT_DIR/offline_installer.py" "$APP_BUNDLE/Contents/Resources/"
 
 # Копируем offline_deps если существует
-if [ -d "$OFFLINE_DEPS_DIR" ] && [ "$(ls -A $OFFLINE_DEPS_DIR 2>/dev/null)" ]; then
+if [ -d "$SCRIPT_DIR/offline_deps" ] && [ "$(ls -A $SCRIPT_DIR/offline_deps 2>/dev/null)" ]; then
     echo "📦 Копирование офлайн-зависимостей в приложение..."
-    cp -r "$OFFLINE_DEPS_DIR" "$APP_BUNDLE/Contents/Resources/"
+    cp -r "$SCRIPT_DIR/offline_deps" "$APP_BUNDLE/Contents/Resources/"
     echo "✅ Офлайн-зависимости включены в приложение"
 else
     echo "⚠️  Папка offline_deps не найдена или пуста"
@@ -254,7 +257,9 @@ def create_icns_from_png(png_data, icon_type):
     return element
 
 try:
-    temp_dir = './build_installer/PDFToPPTXConverter.app/Contents/Resources/icon_temp'
+    # Используем SCRIPT_DIR для корректных путей
+    resources_dir = os.path.join(os.environ.get('SCRIPT_DIR', '.'), 'build_installer', 'PDFToPPTXConverter.app', 'Contents', 'Resources')
+    temp_dir = os.path.join(resources_dir, 'icon_temp')
     os.makedirs(temp_dir, exist_ok=True)
     
     # Создаем PNG разных размеров (только необходимые для macOS)
@@ -267,7 +272,7 @@ try:
     icns_elements = []
     for icon_type, size in sizes:
         png_data = create_minimal_png(size, size)
-        filename = f'{temp_dir}/icon_{size}.png'
+        filename = os.path.join(temp_dir, f'icon_{size}.png')
         with open(filename, 'wb') as f:
             f.write(png_data)
         
@@ -294,7 +299,7 @@ try:
     icns_data = b'icns' + struct.pack('>I', total_size) + icns_data[8:]
     
     # Записываем ICNS файл
-    icns_path = './build_installer/PDFToPPTXConverter.app/Contents/Resources/AppIcon.icns'
+    icns_path = os.path.join(resources_dir, 'AppIcon.icns')
     with open(icns_path, 'wb') as f:
         f.write(icns_data)
     
@@ -306,8 +311,10 @@ try:
 except Exception as e:
     print(f"⚠️  Не удалось создать ICNS иконку: {e}")
     # Создаем пустой файл-заглушку
-    os.makedirs('./build_installer/PDFToPPTXConverter.app/Contents/Resources', exist_ok=True)
-    with open('./build_installer/PDFToPPTXConverter.app/Contents/Resources/AppIcon.icns', 'wb') as f:
+    import os
+    fallback_resources = os.path.join(os.environ.get('SCRIPT_DIR', '.'), 'build_installer', 'PDFToPPTXConverter.app', 'Contents', 'Resources')
+    os.makedirs(fallback_resources, exist_ok=True)
+    with open(os.path.join(fallback_resources, 'AppIcon.icns'), 'wb') as f:
         f.write(b'')
     print("⚠️  Создан файл-заглушка для иконки")
 ICON_SCRIPT
@@ -362,7 +369,12 @@ def create_background_png(filename, width=600, height=400):
         f.write(png_signature + ihdr_chunk + idat_chunk + iend_chunk)
 
 try:
-    create_background_png('./build_installer/dmg_contents/.background/background.png')
+    # Используем SCRIPT_DIR для корректных путей
+    import os
+    dmg_contents_dir = os.path.join(os.environ.get('SCRIPT_DIR', '.'), 'build_installer', 'dmg_contents')
+    background_dir = os.path.join(dmg_contents_dir, '.background')
+    os.makedirs(background_dir, exist_ok=True)
+    create_background_png(os.path.join(background_dir, 'background.png'))
     print("✅ Фон для DMG создан")
 except Exception as e:
     print(f"⚠️  Не удалось создать фон: {e}")
