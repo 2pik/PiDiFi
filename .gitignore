@@ -1,1 +1,29 @@
-Nothing should be ignored since the changes only include source/config files (.md files) and no build artifacts, dependencies, or temp files.
+```
+# Dependencies
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git/modules/
+*.tmproj
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+```

@@ -1,46 +1,22 @@
 #!/bin/bash
-# Скрипт полного удаления PDF в PPTX Converter для macOS
+# Скрипт удаления PDFToPPTXConverter для macOS
 
-echo "🗑️  Удаление PDF в PPTX Converter..."
+APP_NAME="PDFToPPTXConverter"
+INSTALL_DIR="$HOME/Applications"
+APP_BUNDLE="$INSTALL_DIR/${APP_NAME}.app"
 
-# Проверка на macOS
-if [[ "$(uname)" != "Darwin" ]]; then
-    echo "❌ Ошибка: Этот скрипт предназначен только для macOS"
+echo "🗑️ Удаление ${APP_NAME}..."
+
+if [ ! -d "$APP_BUNDLE" ]; then
+    echo "❌ Приложение не найдено в $APP_BUNDLE"
     exit 1
 fi
 
-APP_DIR="$HOME/Applications/PDFToPPTXConverter.app"
+rm -rf "$APP_BUNDLE"
 
-# Проверка существования приложения
-if [ ! -d "$APP_DIR" ]; then
-    echo "⚠️  Приложение не найдено в $APP_DIR"
-    echo "   Возможно, оно уже удалено или никогда не было установлено."
-    exit 0
-fi
-
-# Подтверждение удаления
 echo ""
-read -p "Вы уверены, что хотите удалить приложение? (y/n): " -n 1 -r
+echo "✅ Приложение успешно удалено!"
 echo ""
-
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "❌ Удаление отменено"
-    exit 0
-fi
-
-# Удаление приложения
-rm -rf "$APP_DIR"
-
-if [ $? -eq 0 ]; then
-    echo ""
-    echo "✅ Приложение успешно удалено!"
-    echo ""
-    echo "📝 Примечание:"
-    echo "   • Зависимости Python (customtkinter, PyMuPDF и др.) остались в системе"
-    echo "   • Для их удаления выполните: pip3 uninstall customtkinter PyMuPDF python-pptx Pillow"
-    echo "   • Конвертированные файлы (.pptx) не были удалены"
-else
-    echo ""
-    echo "❌ Произошла ошибка при удалении"
-    exit 1
-fi
+echo "Примечание: Зависимости Python (PyMuPDF, python-pptx, Pillow) не были удалены."
+echo "Если хотите удалить их, выполните:"
+echo "  pip3 uninstall PyMuPDF python-pptx Pillow"
