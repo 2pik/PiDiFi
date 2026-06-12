@@ -1,134 +1,116 @@
 #!/bin/bash
-# Скрипт установки PDF в PPTX Converter для macOS
+# Скрипт установки PDFToPPTXConverter для macOS
+# Создает .app бандл в ~/Applications
 
-echo "🚀 Установка PDF в PPTX Converter..."
+set -e
 
-# Проверка на macOS
-if [[ "$(uname)" != "Darwin" ]]; then
-    echo "❌ Ошибка: Этот скрипт предназначен только для macOS"
+APP_NAME="PDFToPPTXConverter"
+INSTALL_DIR="$HOME/Applications"
+APP_BUNDLE="$INSTALL_DIR/${APP_NAME}.app"
+
+echo "📦 Установка ${APP_NAME}..."
+
+# Проверка Python 3
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Ошибка: Python 3 не найден"
+    echo ""
+    echo "Установите Python 3:"
+    echo "  brew install python3"
+    echo "или скачайте с https://www.python.org/downloads/macos/"
     exit 1
 fi
 
-# Создание директории для приложения
-APP_DIR="$HOME/Applications"
-mkdir -p "$APP_DIR"
+# Создание директории Applications если не существует
+if [ ! -d "$INSTALL_DIR" ]; then
+    echo "📁 Создание директории $INSTALL_DIR..."
+    mkdir -p "$INSTALL_DIR"
+fi
 
-# Создание директории для ресурсов приложения
-APP_RESOURCES="$APP_DIR/PDFToPPTXConverter.app/Contents/Resources"
-mkdir -p "$APP_RESOURCES"
+# Очистка предыдущей версии
+if [ -d "$APP_BUNDLE" ]; then
+    echo "🗑️ Удаление предыдущей версии..."
+    rm -rf "$APP_BUNDLE"
+fi
 
-# Копирование основного скрипта
-cp "$(dirname "$0")/pdf_to_pptx_gui.py" "$APP_RESOURCES/"
-
-# Создание requirements.txt
-cat > "$APP_RESOURCES/requirements.txt" << 'EOF'
-customtkinter>=5.2.0
-PyMuPDF>=1.23.0
-python-pptx>=0.6.21
-Pillow>=10.0.0
-EOF
+# Создание структуры приложения
+echo "📁 Создание структуры приложения..."
+mkdir -p "$APP_BUNDLE/Contents/MacOS"
+mkdir -p "$APP_BUNDLE/Contents/Resources"
 
 # Создание Info.plist
-cat > "$APP_DIR/PDFToPPTXConverter.app/Contents/Info.plist" << 'EOF'
+cat > "$APP_BUNDLE/Contents/Info.plist" << PLIST_EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleExecutable</key>
-    <string>MacOS/Launcher</string>
-    <key>CFBundleIconFile</key>
-    <string>icon.icns</string>
+    <key>CFBundleName</key>
+    <string>${APP_NAME}</string>
+    <key>CFBundleDisplayName</key>
+    <string>PDF в PPTX Конвертер</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
     <key>CFBundleIdentifier</key>
     <string>com.local.pdftopptxconverter</string>
-    <key>CFBundleName</key>
-    <string>PDFToPPTXConverter</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>10.15</string>
+    <key>CFBundleExecutable</key>
+    <string>Launcher</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>NSHighResolutionCapable</key>
     <true/>
-    <key>NSSupportsAutomaticGraphicsSwitching</key>
-    <true/>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.15</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
 </dict>
 </plist>
-EOF
+PLIST_EOF
 
-# Создание исполняемого скрипта запуска (Launcher)
-cat > "$APP_DIR/PDFToPPTXConverter.app/Contents/MacOS/Launcher" << 'EOF'
+# Создание лаунчера
+cat > "$APP_BUNDLE/Contents/MacOS/Launcher" << LAUNCHER_EOF
 #!/bin/bash
-# Запуск приложения PDF в PPTX Converter
+SCRIPT_DIR="\$(cd "\$(dirname "\$0")/../Resources" && pwd)"
+exec python3 "\$SCRIPT_DIR/pdf_to_pptx_gui.py" "\$@"
+LAUNCHER_EOF
 
-APP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-RESOURCES="$APP_ROOT/Resources"
+chmod +x "$APP_BUNDLE/Contents/MacOS/Launcher"
 
-# Проверка Python 3
-if ! command -v python3 &> /dev/null; then
-    osascript -e 'display dialog "Ошибка: Python 3 не найден.\n\nУстановите Python с python.org или через Homebrew:\nbrew install python3" buttons {"OK"} default button 1 with icon stop'
-    exit 1
-fi
+# Копирование основного скрипта
+echo "📄 Копирование файлов..."
+cp "$(dirname "$0")/pdf_to_pptx_gui.py" "$APP_BUNDLE/Contents/Resources/"
+cp "$(dirname "$0")/requirements.txt" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
 
-# Проверка и установка зависимостей при необходимости
-check_imports() {
-    # Проверяем основные модули (fitz, pptx, PIL) - они критичны
-    python3 -c "import fitz; import pptx; from PIL import Image" 2>/dev/null
-    CORE_OK=$?
-    
-    # Если это macOS с GUI, проверяем и tkinter
-    if [[ "$(uname)" == "Darwin" ]]; then
-        python3 -c "import customtkinter" 2>/dev/null
-        TK_OK=$?
-        if [ $CORE_OK -eq 0 ] && [ $TK_OK -eq 0 ]; then
-            return 0
-        elif [ $CORE_OK -eq 0 ]; then
-            # Core модули есть, но нет tkinter - пробуем установить
-            return 1
-        else
-            return 1
-        fi
+# Проверка зависимостей
+echo "🔍 Проверка зависимостей..."
+python3 -c "import fitz" 2>/dev/null || MISSING="${MISSING} PyMuPDF"
+python3 -c "from pptx import Presentation" 2>/dev/null || MISSING="${MISSING} python-pptx"
+python3 -c "from PIL import Image" 2>/dev/null || MISSING="${MISSING} Pillow"
+
+if [ -n "$MISSING" ]; then
+    echo ""
+    echo "⚠️  Отсутствуют модули:$MISSING"
+    echo ""
+    read -p "Установить их сейчас? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        pip3 install$MISSING
     else
-        # Для Linux/серверов проверяем только core модули
-        return $CORE_OK
-    fi
-}
-
-if ! check_imports; then
-    echo "📦 Установка зависимостей..."
-    pip3 install --quiet --upgrade pip
-    if ! pip3 install --quiet -r "$RESOURCES/requirements.txt"; then
-        osascript -e 'display dialog "Не удалось автоматически установить зависимости.\n\nПожалуйста, установите вручную:\npip3 install -r requirements.txt" buttons {"OK"} default button 1 with icon stop'
-        exit 1
+        echo ""
+        echo "Вы можете установить их позже командой:"
+        echo "pip3 install$MISSING"
     fi
 fi
-
-# Запуск приложения
-exec python3 "$RESOURCES/pdf_to_pptx_gui.py"
-EOF
-
-chmod +x "$APP_DIR/PDFToPPTXConverter.app/Contents/MacOS/Launcher"
-
-# Создание простой иконки (базовый placeholder)
-# В реальном приложении здесь был бы настоящий .icns файл
-echo "🎨 Создание иконки приложения..."
-
-# Установка прав
-chmod -R 755 "$APP_DIR/PDFToPPTXConverter.app"
 
 echo ""
 echo "✅ Установка завершена!"
 echo ""
-echo "📍 Приложение установлено в: $APP_DIR/PDFToPPTXConverter.app"
+echo "📍 Приложение установлено в: $APP_BUNDLE"
 echo ""
-echo "🔹 Для запуска:"
-echo "   1. Откройте Finder"
-echo "   2. Перейдите в ~/Applications"
-echo "   3. Дважды кликните на PDFToPPTXConverter.app"
-echo ""
-echo "🔹 Или через терминал:"
-echo "   open ~/Applications/PDFToPPTXConverter.app"
+echo "Для запуска:"
+echo "  1. Откройте Finder"
+echo "  2. Перейдите в ~/Applications"
+echo "  3. Дважды кликните на ${APP_NAME}.app"
 echo ""
 echo "⚠️  При первом запуске macOS может предупредить о неизвестном разработчике."
-echo "   Решение: Системные настройки → Защита и безопасность → Разрешить"
-echo ""
+echo "   Нажмите правой кнопкой → Открыть → Открыть в диалоге безопасности."
