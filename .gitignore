@@ -1,1 +1,1 @@
-Nothing should be ignored based on the provided file changes. The only modified file is 'build_dmg.sh', which appears to be a shell script for building a DMG file and does not fall under any of the categories that should be ignored according to the rules provided.
+Nothing should be ignored based on the provided file changes. The only modified file is `build_dmg.sh`, which appears to be a shell script for building a DMG file and does not represent a build artifact, dependency, or temporary file that should be ignored.
