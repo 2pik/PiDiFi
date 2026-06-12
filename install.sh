@@ -35,7 +35,7 @@ cat > "$APP_DIR/PDFToPPTXConverter.app/Contents/Info.plist" << 'EOF'
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>MacOS</string>
+    <string>MacOS/Launcher</string>
     <key>CFBundleIconFile</key>
     <string>icon.icns</string>
     <key>CFBundleIdentifier</key>
@@ -56,13 +56,19 @@ cat > "$APP_DIR/PDFToPPTXConverter.app/Contents/Info.plist" << 'EOF'
 </plist>
 EOF
 
-# Создание исполняемого скрипта запуска
-cat > "$APP_DIR/PDFToPPTXConverter.app/Contents/MacOS" << 'EOF'
+# Создание исполняемого скрипта запуска (Launcher)
+cat > "$APP_DIR/PDFToPPTXConverter.app/Contents/MacOS/Launcher" << 'EOF'
 #!/bin/bash
 # Запуск приложения PDF в PPTX Converter
 
 APP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RESOURCES="$APP_ROOT/Resources"
+
+# Проверка Python 3
+if ! command -v python3 &> /dev/null; then
+    osascript -e 'display dialog "Ошибка: Python 3 не найден.\n\nУстановите Python с python.org или через Homebrew:\nbrew install python3" buttons {"OK"} default button 1 with icon stop'
+    exit 1
+fi
 
 # Проверка и установка зависимостей при необходимости
 if ! python3 -c "import customtkinter, fitz, pptx, PIL" 2>/dev/null; then
@@ -75,7 +81,7 @@ fi
 exec python3 "$RESOURCES/pdf_to_pptx_gui.py"
 EOF
 
-chmod +x "$APP_DIR/PDFToPPTXConverter.app/Contents/MacOS"
+chmod +x "$APP_DIR/PDFToPPTXConverter.app/Contents/MacOS/Launcher"
 
 # Создание простой иконки (базовый placeholder)
 # В реальном приложении здесь был бы настоящий .icns файл
