@@ -5,6 +5,7 @@
 ![macOS](https://img.shields.io/badge/macOS-10.15+-silver?logo=apple)
 ![Python](https://img.shields.io/badge/Python-3.8+-blue?logo=python)
 ![License](https://img.shields.io/badge/License-MIT-green)
+![Build](https://github.com/YOUR_USERNAME/pdf-to-pptx-converter/workflows/CI/badge.svg)
 
 ## ✨ Особенности
 
@@ -14,6 +15,7 @@
 - 📄 **Многостраничная поддержка** — конвертирует PDF любой длины
 - 🖼️ **Высокое качество** — сохранение оригинального качества изображений
 - 🌓 **Тёмная тема** — автоматическая адаптация под системную тему
+- 📦 **Офлайн-установка** — работает без интернета после установки зависимостей
 
 ## 📥 Установка
 
@@ -52,11 +54,13 @@ chmod +x build_dmg.sh
 # DMG файл будет создан в текущей директории
 ```
 
+> **Примечание:** Команда `hdiutil` доступна только на macOS. На других ОС будет создана только структура `.app` бандла.
+
 ## 🚀 Использование
 
 1. Запустите приложение **PDF в PPTX Конвертер**
-2. Нажмите кнопку **«Выбрать...»** и укажите PDF файл
-3. При необходимости измените имя выходного файла
+2. Нажмите кнопку **«Выбрать...»** и укажите PDF файл (или перетащите файл в окно)
+3. Выберите настройки качества и формата слайдов
 4. Нажмите **«Конвертировать»**
 5. Выберите место сохранения PPTX файла
 6. Дождитесь завершения процесса
@@ -66,9 +70,9 @@ chmod +x build_dmg.sh
 - **macOS** 10.15 (Catalina) или новее
 - **Python 3.8** или новее (встроен в macOS 12+ или установите с python.org)
 - **Зависимости:**
-  - PyMuPDF
-  - python-pptx
-  - Pillow
+  - PyMuPDF (для работы с PDF)
+  - python-pptx (для создания PPTX)
+  - Pillow (для обработки изображений)
 
 ## 🗑️ Удаление
 
@@ -92,10 +96,20 @@ brew install python3
 # https://www.python.org/downloads/macos/
 ```
 
-### Ошибка «Отсутствуют необходимые модули»
+### Ошибка «ModuleNotFoundError: No module named 'PIL'»
 Установите недостающие зависимости:
 ```bash
 pip3 install PyMuPDF python-pptx Pillow
+```
+
+Или используйте офлайн-установщик:
+```bash
+# На компьютере с интернетом
+./bundle_deps.sh
+
+# Скопируйте папку offline_deps на целевой компьютер
+# Затем запустите
+python3 offline_installer.py
 ```
 
 ### Приложение не запускается
@@ -106,17 +120,25 @@ pip3 install PyMuPDF python-pptx Pillow
    /Applications/PDFToPPTXConverter.app/Contents/MacOS/Launcher
    ```
 
+### Ошибка при создании DMG (hdiutil not found)
+Команда `hdiutil` доступна только на macOS. Если вы видите эту ошибку:
+- На Linux/Windows: используйте созданную структуру `.app` бандла напрямую
+- Скопируйте `build/PDFToPPTXConverter.app` в нужное место
+- Для запуска используйте: `python3 pdf_to_pptx_gui.py`
+
 ## 📁 Структура проекта
 
 ```
 pdf-to-pptx-converter/
-├── pdf_to_pptx_gui.py      # Основной код приложения
+├── pdf_to_pptx_gui.py      # Основной код приложения с GUI
 ├── requirements.txt         # Зависимости Python
-├── install.sh              # Скрипт установки .app бандла
+├── build_dmg.sh            # Скрипт создания DMG бандла
+├── bundle_deps.sh          # Скрипт загрузки зависимостей для офлайн-установки
+├── offline_installer.py    # Автономный установщик зависимостей
 ├── uninstall.sh            # Скрипт удаления
-├── build_dmg.sh            # Скрипт создания DMG
 ├── README.md               # Документация (этот файл)
-└── README_RU.md            # Полная документация на русском
+├── INSTALL_GUIDE.md        # Подробное руководство по установке
+└── OFFLINE_INSTALL.md      # Инструкция по офлайн-установке
 ```
 
 ## 🤝 Вклад в проект
@@ -124,10 +146,12 @@ pdf-to-pptx-converter/
 Проект открыт для улучшений! Если вы нашли ошибку или хотите предложить новую функцию:
 
 1. Создайте форк репозитория
-2. Создайте ветку (`git checkout -b feature/AmazingFeature`)
-3. Внесите изменения (`git commit -m 'Add some AmazingFeature'`)
-4. Отправьте в удалённый репозиторий (`git push origin feature/AmazingFeature`)
+2. Создайте ветку с латинским названием (`git checkout -b feature/amazing-feature`)
+3. Внесите изменения (`git commit -m 'Add some amazing feature'`)
+4. Отправьте в удалённый репозиторий (`git push origin feature/amazing-feature`)
 5. Создайте Pull Request
+
+> **Важно:** Используйте только латинские символы в названиях веток Git во избежание ошибок.
 
 ## 📄 Лицензия
 

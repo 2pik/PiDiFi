@@ -1,57 +1,13 @@
 ```
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
 # Build artifacts
 build/
-*.app
-*.dmg
-
-# Dependencies
-node_modules/
-.venv/
-venv/
-__pycache__/
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
 
 # Logs
 *.log
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Temp files
-*.tmp
-
-# Compression
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
 ```
