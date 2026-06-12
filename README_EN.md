@@ -17,12 +17,12 @@ A native macOS application for converting PDF files to PowerPoint presentations 
 
 ## 📥 Download
 
-Get the latest installer from **[GitHub Releases](https://github.com/YOUR_USERNAME/pdf-to-pptx-converter/releases)**
+Get the latest installer from **[GitHub Releases](https://github.com/USERNAME/pdf-to-pptx-converter/releases)**
 
 Or install from source:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/pdf-to-pptx-converter.git
+git clone https://github.com/USERNAME/pdf-to-pptx-converter.git
 cd pdf-to-pptx-converter
 ./build_dmg.sh  # Create DMG installer
 ```
@@ -155,7 +155,7 @@ To make the app downloadable for users:
    git init
    git add .
    git commit -m "Initial commit"
-   git remote add origin https://github.com/YOUR_USERNAME/pdf-to-pptx-converter.git
+   git remote add origin https://github.com/USERNAME/pdf-to-pptx-converter.git
    git push -u origin main
    ```
 
@@ -200,4 +200,4 @@ MIT License — free to use and modify.
 
 ---
 
-**Made with ❤️ for macOS users**
+**Made for macOS users**
