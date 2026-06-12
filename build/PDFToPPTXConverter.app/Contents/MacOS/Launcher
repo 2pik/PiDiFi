@@ -1,0 +1,36 @@
+#!/bin/bash
+# Лаунчер приложения PDFToPPTXConverter
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
+PYTHON_SCRIPT="$SCRIPT_DIR/pdf_to_pptx_gui.py"
+
+# Проверка наличия Python 3
+if ! command -v python3 &> /dev/null; then
+    osascript -e 'display dialog "Ошибка: Python 3 не найден.\n\nПожалуйста, установите Python 3 с сайта python.org или через Homebrew:\nbrew install python3" buttons {"OK"} default button 1 with icon stop'
+    exit 1
+fi
+
+# Проверка зависимостей
+check_module() {
+    python3 -c "import $1" 2>/dev/null
+    return $?
+}
+
+MISSING_MODULES=""
+if ! check_module fitz; then
+    MISSING_MODULES="$MISSING_MODULES PyMuPDF"
+fi
+if ! check_module pptx; then
+    MISSING_MODULES="$MISSING_MODULES python-pptx"
+fi
+if ! check_module PIL; then
+    MISSING_MODULES="$MISSING_MODULES Pillow"
+fi
+
+if [ -n "$MISSING_MODULES" ]; then
+    osascript -e "display dialog \"Ошибка: Отсутствуют необходимые модули:$MISSING_MODULES\n\nУстановите их командой:\npip3 install$MISSING_MODULES\" buttons {\"OK\"} default button 1 with icon stop"
+    exit 1
+fi
+
+# Запуск основного скрипта
+exec python3 "$PYTHON_SCRIPT" "$@"
