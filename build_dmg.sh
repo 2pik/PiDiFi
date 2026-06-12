@@ -5,6 +5,10 @@
 
 set -e
 
+# Определяем директорию скрипта
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 APP_NAME="PDFToPPTXConverter"
 VERSION="2.0.0"
 BUILD_DIR="./build"
@@ -34,7 +38,7 @@ echo "🔍 Проверка и установка зависимостей..."
 
 # Проверяем, что нужно установить
 NEEDS_INSTALL=false
-if ! check_module fitz || ! check_module pptx || ! check_module PIL; then
+if ! check_module fitz || ! check_module pptx; then
     NEEDS_INSTALL=true
 fi
 
@@ -48,9 +52,9 @@ if [ "$NEEDS_INSTALL" = true ]; then
     fi
     
     # Проверяем снова
-    if ! check_module fitz || ! check_module pptx || ! check_module PIL; then
+    if ! check_module fitz || ! check_module pptx; then
         echo "   🌐 Установка через pip3..."
-        pip3 install --quiet --upgrade PyMuPDF python-pptx Pillow
+        pip3 install --quiet --upgrade PyMuPDF python-pptx
     fi
     
     # Финальная проверка
@@ -60,10 +64,6 @@ if [ "$NEEDS_INSTALL" = true ]; then
     fi
     if ! check_module pptx; then
         echo "❌ Критическая ошибка: не удалось установить python-pptx"
-        exit 1
-    fi
-    if ! check_module PIL; then
-        echo "❌ Критическая ошибка: не удалось установить Pillow"
         exit 1
     fi
     
@@ -139,9 +139,6 @@ fi
 if ! check_module pptx; then
     MISSING_MODULES="$MISSING_MODULES python-pptx"
 fi
-if ! check_module PIL; then
-    MISSING_MODULES="$MISSING_MODULES Pillow"
-fi
 
 # Если есть отсутствующие модули, пробуем установить из offline_deps
 if [ -n "$MISSING_MODULES" ]; then
@@ -158,9 +155,6 @@ if [ -n "$MISSING_MODULES" ]; then
         fi
         if ! check_module pptx; then
             MISSING_MODULES="$MISSING_MODULES python-pptx"
-        fi
-        if ! check_module PIL; then
-            MISSING_MODULES="$MISSING_MODULES Pillow"
         fi
         
         if [ -n "$MISSING_MODULES" ]; then

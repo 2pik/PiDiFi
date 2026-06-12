@@ -1,13 +1,30 @@
 ```
-# Python
+# Build artifacts
+build/
+dist/
+*.app/
+
+# Dependencies
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.Python
+env/
+venv/
+.venv/
+.ENV
+.venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+.eggs/
 
 # Logs and temp files
 *.log
 *.tmp
+*.swp
+*.swo
 
 # Environment
 .env
@@ -17,8 +34,15 @@ __pycache__/
 # Editors
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Dependencies
-.venv/
-venv/
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 ```
