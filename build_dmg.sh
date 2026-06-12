@@ -1,15 +1,17 @@
 #!/bin/bash
 # Скрипт создания установочного DMG файла для macOS
-# Не требует дополнительных зависимостей кроме стандартных утилит macOS
+# Вдохновлен лучшими практиками umputun
+# Поддерживает офлайн-установку с локальными зависимостями
 
 set -e
 
 APP_NAME="PDFToPPTXConverter"
-VERSION="1.0.0"
+VERSION="2.0.0"
 BUILD_DIR="./build"
 APP_BUNDLE="$BUILD_DIR/${APP_NAME}.app"
 DMG_FILE="${APP_NAME}-v${VERSION}.dmg"
 VOLUME_NAME="${APP_NAME} v${VERSION}"
+OFFLINE_DEPS_DIR="./offline_deps"
 
 echo "📦 Создание установочного DMG файла..."
 
@@ -17,6 +19,66 @@ echo "📦 Создание установочного DMG файла..."
 echo "🧹 Очистка предыдущей сборки..."
 rm -rf "$BUILD_DIR"
 rm -f "$DMG_FILE"
+
+# Функция проверки модуля
+check_module() {
+    python3 -c "import $1" 2>/dev/null
+    return $?
+}
+
+# Проверка зависимостей
+echo "🔍 Проверка зависимостей..."
+MISSING_MODULES=""
+if ! check_module fitz; then
+    MISSING_MODULES="$MISSING_MODULES PyMuPDF"
+fi
+if ! check_module pptx; then
+    MISSING_MODULES="$MISSING_MODULES python-pptx"
+fi
+if ! check_module PIL; then
+    MISSING_MODULES="$MISSING_MODULES Pillow"
+fi
+
+# Если есть отсутствующие модули, пробуем установить из offline_deps
+if [ -n "$MISSING_MODULES" ]; then
+    echo "⚠️  Отсутствуют модули:$MISSING_MODULES"
+    
+    if [ -d "$OFFLINE_DEPS_DIR" ] && [ "$(ls -A $OFFLINE_DEPS_DIR/*.whl 2>/dev/null)" ]; then
+        echo "📦 Попытка установки из локальных wheel файлов..."
+        python3 offline_installer.py
+        
+        # Повторная проверка
+        MISSING_MODULES=""
+        if ! check_module fitz; then
+            MISSING_MODULES="$MISSING_MODULES PyMuPDF"
+        fi
+        if ! check_module pptx; then
+            MISSING_MODULES="$MISSING_MODULES python-pptx"
+        fi
+        if ! check_module PIL; then
+            MISSING_MODULES="$MISSING_MODULES Pillow"
+        fi
+        
+        if [ -n "$MISSING_MODULES" ]; then
+            echo "❌ Не удалось установить зависимости из offline_deps"
+            echo ""
+            echo "Варианты решения:"
+            echo "1. Запустите с интернетом: pip3 install -r requirements.txt"
+            echo "2. Скачайте зависимости: ./bundle_deps.sh (требуется интернет)"
+            exit 1
+        fi
+        echo "✅ Зависимости установлены из offline_deps"
+    else
+        echo "❌ Ошибка: Отсутствуют необходимые модули:$MISSING_MODULES"
+        echo ""
+        echo "Варианты решения:"
+        echo "1. Запустите с интернетом: pip3 install -r requirements.txt"
+        echo "2. Скачайте зависимости заранее: ./bundle_deps.sh"
+        echo "   Затем передайте папку offline_deps пользователю"
+        exit 1
+    fi
+fi
+echo "✅ Все зависимости установлены"
 
 # Создание структуры приложения
 echo "📁 Создание структуры приложения..."
@@ -53,54 +115,97 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << PLIST_EOF
 </plist>
 PLIST_EOF
 
-# Создание лаунчера (обертка для запуска Python скрипта)
-cat > "$APP_BUNDLE/Contents/MacOS/Launcher" << LAUNCHER_EOF
+# Создание лаунчера
+cat > "$APP_BUNDLE/Contents/MacOS/Launcher" << 'LAUNCHER_EOF'
 #!/bin/bash
 # Лаунчер приложения PDFToPPTXConverter
 
-SCRIPT_DIR="\$(cd "\$(dirname "\$0")/../Resources" && pwd)"
-PYTHON_SCRIPT="\$SCRIPT_DIR/pdf_to_pptx_gui.py"
+SCRIPT_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
+PYTHON_SCRIPT="$SCRIPT_DIR/pdf_to_pptx_gui.py"
+OFFLINE_DEPS_DIR="$SCRIPT_DIR/offline_deps"
 
 # Проверка наличия Python 3
 if ! command -v python3 &> /dev/null; then
-    osascript -e 'display dialog "Ошибка: Python 3 не найден.\n\nПожалуйста, установите Python 3 с сайта python.org или через Homebrew:\nbrew install python3" buttons {"OK"} default button 1 with icon stop'
+    echo "❌ Ошибка: Python 3 не найден."
+    echo ""
+    echo "Пожалуйста, установите Python 3 с сайта python.org или через Homebrew:"
+    echo "brew install python3"
     exit 1
 fi
 
-# Проверка зависимостей
+# Функция проверки модуля
 check_module() {
-    python3 -c "import \$1" 2>/dev/null
-    return \$?
+    python3 -c "import $1" 2>/dev/null
+    return $?
 }
 
+# Проверка зависимостей
 MISSING_MODULES=""
 if ! check_module fitz; then
-    MISSING_MODULES="\$MISSING_MODULES PyMuPDF"
+    MISSING_MODULES="$MISSING_MODULES PyMuPDF"
 fi
 if ! check_module pptx; then
-    MISSING_MODULES="\$MISSING_MODULES python-pptx"
+    MISSING_MODULES="$MISSING_MODULES python-pptx"
 fi
 if ! check_module PIL; then
-    MISSING_MODULES="\$MISSING_MODULES Pillow"
+    MISSING_MODULES="$MISSING_MODULES Pillow"
 fi
 
-if [ -n "\$MISSING_MODULES" ]; then
-    osascript -e "display dialog \"Ошибка: Отсутствуют необходимые модули:\$MISSING_MODULES\n\nУстановите их командой:\npip3 install\$MISSING_MODULES\" buttons {\"OK\"} default button 1 with icon stop"
-    exit 1
+# Если есть отсутствующие модули, пробуем установить из offline_deps
+if [ -n "$MISSING_MODULES" ]; then
+    echo "⚠️  Отсутствуют модули:$MISSING_MODULES"
+    
+    if [ -d "$OFFLINE_DEPS_DIR" ] && [ "$(ls -A $OFFLINE_DEPS_DIR/*.whl 2>/dev/null)" ]; then
+        echo "📦 Попытка установки из локальных wheel файлов..."
+        python3 "$SCRIPT_DIR/offline_installer.py"
+        
+        # Повторная проверка
+        MISSING_MODULES=""
+        if ! check_module fitz; then
+            MISSING_MODULES="$MISSING_MODULES PyMuPDF"
+        fi
+        if ! check_module pptx; then
+            MISSING_MODULES="$MISSING_MODULES python-pptx"
+        fi
+        if ! check_module PIL; then
+            MISSING_MODULES="$MISSING_MODULES Pillow"
+        fi
+        
+        if [ -n "$MISSING_MODULES" ]; then
+            osascript -e "display dialog \"Не удалось установить зависимости. Пожалуйста, запустите приложение с интернетом или установите зависимости вручную:\npip3 install -r requirements.txt\" buttons {\"OK\"} default button 1 with icon stop"
+            exit 1
+        fi
+        echo "✅ Зависимости установлены из offline_deps"
+    else
+        osascript -e "display dialog \"Отсутствуют необходимые модули:$MISSING_MODULES\n\nУстановите их командой:\npip3 install -r requirements.txt\n\nИли скачайте зависимости заранее и поместите в папку offline_deps\" buttons {\"OK\"} default button 1 with icon stop"
+        exit 1
+    fi
 fi
 
 # Запуск основного скрипта
-exec python3 "\$PYTHON_SCRIPT" "\$@"
+exec python3 "$PYTHON_SCRIPT" "$@"
 LAUNCHER_EOF
 
 chmod +x "$APP_BUNDLE/Contents/MacOS/Launcher"
 
-# Копирование основного скрипта
+# Копирование основного скрипта и офлайн-установщика
 echo "📄 Копирование файлов приложения..."
 cp ./pdf_to_pptx_gui.py "$APP_BUNDLE/Contents/Resources/"
+cp ./requirements.txt "$APP_BUNDLE/Contents/Resources/"
+cp ./offline_installer.py "$APP_BUNDLE/Contents/Resources/"
 
-# Создание простой иконки (без внешних зависимостей)
-# Создаем минимальный PNG файл программно на Python без PIL
+# Копируем offline_deps если существует
+if [ -d "$OFFLINE_DEPS_DIR" ] && [ "$(ls -A $OFFLINE_DEPS_DIR 2>/dev/null)" ]; then
+    echo "📦 Копирование офлайн-зависимостей в приложение..."
+    cp -r "$OFFLINE_DEPS_DIR" "$APP_BUNDLE/Contents/Resources/"
+    echo "✅ Офлайн-зависимости включены в приложение"
+else
+    echo "⚠️  Папка offline_deps не найдена или пуста"
+    echo "   Приложение будет работать только при наличии интернета для установки зависимостей"
+fi
+
+# Создание иконки без внешних зависимостей
+echo "🎨 Создание иконки приложения..."
 python3 << 'ICON_SCRIPT'
 import struct
 import zlib
@@ -109,7 +214,7 @@ def create_minimal_png(filename):
     """Создает минимальный PNG файл 512x512 с простым дизайном"""
     width, height = 512, 512
     
-    # Создаем простые данные изображения (синий фон)
+    # Создаем простые данные изображения (синий градиент)
     raw_data = b''
     for y in range(height):
         raw_data += b'\x00'  # Filter byte для каждой строки
@@ -145,20 +250,18 @@ def create_minimal_png(filename):
         f.write(png_signature + ihdr_chunk + idat_chunk + iend_chunk)
 
 try:
+    import os
+    os.makedirs('./build/PDFToPPTXConverter.app/Contents/Resources', exist_ok=True)
     create_minimal_png('./build/PDFToPPTXConverter.app/Contents/Resources/AppIcon.png')
     print("✅ Иконка создана без внешних зависимостей")
 except Exception as e:
     print(f"⚠️  Не удалось создать иконку: {e}")
-    # Создаем пустой файл-заглушку
     import os
     os.makedirs('./build/PDFToPPTXConverter.app/Contents/Resources', exist_ok=True)
     with open('./build/PDFToPPTXConverter.app/Contents/Resources/AppIcon.png', 'w') as f:
         f.write('')
     print("⚠️  Создан файл-заглушка для иконки")
 ICON_SCRIPT
-
-# Копирование requirements.txt
-cp ./requirements.txt "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
 
 # Создание DMG
 echo "💿 Создание DMG образа..."

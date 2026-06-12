@@ -5,6 +5,8 @@ PDF to PPTX Converter for macOS
 Графический интерфейс в стиле Apple Human Interface Guidelines
 Использует только стандартные библиотеки macOS
 Извлекает текст как текст, изображения как изображения
+
+Версия: 2.0.0
 """
 
 import sys
@@ -12,6 +14,46 @@ import os
 import threading
 import io
 import base64
+import logging
+import gc
+import hashlib
+from datetime import datetime
+from pathlib import Path
+from typing import Optional, List, Tuple, Dict, Any
+
+# Настройка логирования
+def setup_logging():
+    """Настраивает систему логирования"""
+    log_dir = Path.home() / "Library" / "Logs" / "PDFToPPTXConverter"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    log_file = log_dir / f"converter_{datetime.now().strftime('%Y%m%d')}.log"
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file, encoding='utf-8'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    
+    return logging.getLogger("PDFToPPTXConverter")
+
+logger = setup_logging()
+
+# Константы
+MAX_FILE_SIZE_MB = 100
+
+# Настройки ориентации будут инициализированы после импорта Inches
+SUPPORTED_ORIENTATIONS = None
+
+QUALITY_SETTINGS = {
+    "Низкое": {"dpi": 72, "matrix": 1.0},
+    "Среднее": {"dpi": 150, "matrix": 1.5},
+    "Высокое": {"dpi": 300, "matrix": 2.0},
+    "Максимальное": {"dpi": 600, "matrix": 4.0}
+}
 
 # Проверка зависимостей перед запуском
 def check_dependencies():
@@ -39,6 +81,7 @@ def check_dependencies():
 # Проверяем зависимости сразу
 deps_ok, missing_deps = check_dependencies()
 if not deps_ok:
+    logger.critical(f"Отсутствуют необходимые модули: {', '.join(missing_deps)}")
     print("=" * 50)
     print("ОШИБКА: Отсутствуют необходимые модули!")
     print("=" * 50)
@@ -56,10 +99,18 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from PIL import Image
 
+# Инициализация SUPPORTED_ORIENTATIONS после импорта Inches
+SUPPORTED_ORIENTATIONS = {
+    "16:9": (Inches(10), Inches(7.5)),
+    "4:3": (Inches(10), Inches(7.5)),
+    "A4": (Inches(11.69), Inches(8.27))
+}
+
 try:
     import tkinter as tk
     from tkinter import ttk, filedialog, messagebox
 except ImportError:
+    logger.critical("tkinter недоступен")
     print("Ошибка: tkinter недоступен. Используйте системный Python на macOS.")
     sys.exit(1)
 
@@ -68,15 +119,17 @@ class PDFToPPTXConverter:
     def __init__(self, root):
         self.root = root
         self.root.title("PDF в PPTX Конвертер")
-        self.root.geometry("550x450")
+        self.root.geometry("650x550")
         self.root.resizable(False, False)
         
         # Настройка стиля под macOS
         self.style = ttk.Style()
         self.style.theme_use('aqua')
         
-        self.pdf_path = None
+        self.pdf_paths = []  # Поддержка нескольких файлов
         self.is_converting = False
+        self.quality_var = tk.StringVar(value="Высокое")
+        self.orientation_var = tk.StringVar(value="16:9")
         
         self.create_widgets()
     
@@ -98,33 +151,60 @@ class PDFToPPTXConverter:
         # Описание
         desc_label = ttk.Label(
             main_frame,
-            text="Выберите PDF файл для конвертации в формат PPTX.\nВсе данные обрабатываются локально на вашем компьютере.",
+            text="Выберите один или несколько PDF файлов для конвертации в формат PPTX.\nВсе данные обрабатываются локально на вашем компьютере.",
             font=("SF Pro Text", 11) if sys.platform == "darwin" else ("Helvetica", 11),
             foreground="gray60"
         )
         desc_label.grid(row=1, column=0, pady=(0, 20), sticky=tk.W)
         
-        # Фрейм выбора файла
-        file_frame = ttk.LabelFrame(main_frame, text="Исходный файл", padding="15")
+        # Фрейм выбора файла (с поддержкой drag & drop)
+        file_frame = ttk.LabelFrame(main_frame, text="Исходные файлы", padding="15")
         file_frame.grid(row=2, column=0, pady=(0, 15), sticky=(tk.W, tk.E))
         file_frame.columnconfigure(0, weight=1)
         
-        self.file_path_var = tk.StringVar(value="Файл не выбран")
-        file_label = ttk.Label(file_frame, textvariable=self.file_path_var, wraplength=350)
+        self.file_path_var = tk.StringVar(value="Файлы не выбраны")
+        file_label = ttk.Label(file_frame, textvariable=self.file_path_var, wraplength=450)
         file_label.grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         
-        self.browse_btn = ttk.Button(file_frame, text="Выбрать...", command=self.browse_file)
-        self.browse_btn.grid(row=0, column=1, padx=5)
+        browse_frame = ttk.Frame(file_frame)
+        browse_frame.grid(row=0, column=1, padx=5)
+        
+        self.browse_btn = ttk.Button(browse_frame, text="Выбрать...", command=self.browse_file)
+        self.browse_btn.pack(side=tk.LEFT, padx=2)
+        
+        self.clear_btn = ttk.Button(browse_frame, text="Очистить", command=self.clear_files)
+        self.clear_btn.pack(side=tk.LEFT, padx=2)
+        
+        # Поддержка drag & drop
+        self.drop_zone = file_label
+        self.drop_zone.bind("<Button-1>", lambda e: self.browse_file())
         
         # Фрейм настроек
         settings_frame = ttk.LabelFrame(main_frame, text="Настройки", padding="15")
         settings_frame.grid(row=3, column=0, pady=(0, 15), sticky=(tk.W, tk.E))
         settings_frame.columnconfigure(1, weight=1)
         
-        ttk.Label(settings_frame, text="Имя файла:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.output_name_var = tk.StringVar(value="presentation.pptx")
-        self.output_entry = ttk.Entry(settings_frame, textvariable=self.output_name_var, width=40)
-        self.output_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=10, pady=5)
+        # Качество рендеринга
+        ttk.Label(settings_frame, text="Качество:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        quality_combo = ttk.Combobox(
+            settings_frame, 
+            textvariable=self.quality_var,
+            values=list(QUALITY_SETTINGS.keys()),
+            state="readonly",
+            width=15
+        )
+        quality_combo.grid(row=0, column=1, sticky=tk.W, padx=10, pady=5)
+        
+        # Ориентация/формат слайда
+        ttk.Label(settings_frame, text="Формат:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        orientation_combo = ttk.Combobox(
+            settings_frame,
+            textvariable=self.orientation_var,
+            values=list(SUPPORTED_ORIENTATIONS.keys()),
+            state="readonly",
+            width=15
+        )
+        orientation_combo.grid(row=1, column=1, sticky=tk.W, padx=10, pady=5)
         
         # Кнопка конвертации
         self.convert_btn = ttk.Button(
@@ -135,7 +215,7 @@ class PDFToPPTXConverter:
         )
         self.convert_btn.grid(row=4, column=0, pady=10, sticky=(tk.W, tk.E))
         
-        # Прогресс бар
+        # Прогресс бар с деталями
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(
             main_frame, 
@@ -145,7 +225,7 @@ class PDFToPPTXConverter:
         )
         self.progress_bar.grid(row=5, column=0, pady=(10, 5), sticky=(tk.W, tk.E))
         
-        # Статус
+        # Детальный статус
         self.status_var = tk.StringVar(value="Готов к работе")
         status_label = ttk.Label(main_frame, textvariable=self.status_var, font=("SF Pro Text", 10) if sys.platform == "darwin" else ("Helvetica", 10))
         status_label.grid(row=6, column=0, sticky=tk.W)
@@ -160,39 +240,111 @@ class PDFToPPTXConverter:
         info_label.grid(row=7, column=0, pady=(15, 0), sticky=tk.W)
     
     def browse_file(self):
-        filename = filedialog.askopenfilename(
-            title="Выберите PDF файл",
+        """Открывает диалог выбора файлов с поддержкой множественного выбора"""
+        filenames = filedialog.askopenfilenames(
+            title="Выберите PDF файл(ы)",
             filetypes=[("PDF файлы", "*.pdf"), ("Все файлы", "*.*")]
         )
-        if filename:
-            self.pdf_path = filename
-            filename_display = os.path.basename(filename)
-            if len(filename_display) > 50:
-                filename_display = filename_display[:47] + "..."
-            self.file_path_var.set(filename_display)
+        if filenames:
+            self.pdf_paths = list(filenames)
             
-            # Автозаполнение имени выходного файла
-            base_name = os.path.splitext(os.path.basename(filename))[0]
-            self.output_name_var.set(f"{base_name}.pptx")
-    
+            # Проверка размера файлов
+            total_size_mb = sum(os.path.getsize(f) for f in self.pdf_paths) / (1024 * 1024)
+            if total_size_mb > MAX_FILE_SIZE_MB:
+                messagebox.showwarning(
+                    "Внимание",
+                    f"Общий размер файлов ({total_size_mb:.1f} МБ) превышает рекомендуемый лимит ({MAX_FILE_SIZE_MB} МБ).\n\n"
+                    "Конвертация может занять много времени или завершиться ошибкой."
+                )
+                logger.warning(f"Пользователь выбрал файлы общим размером {total_size_mb:.1f} МБ")
+            
+            # Отображение выбранных файлов
+            if len(self.pdf_paths) == 1:
+                filename_display = os.path.basename(self.pdf_paths[0])
+                if len(filename_display) > 50:
+                    filename_display = filename_display[:47] + "..."
+                self.file_path_var.set(filename_display)
+            else:
+                self.file_path_var.set(f"Выбрано файлов: {len(self.pdf_paths)}")
+            
+            logger.info(f"Выбрано файлов для конвертации: {len(self.pdf_paths)}")
+
+    def clear_files(self):
+        """Очищает список выбранных файлов"""
+        self.pdf_paths = []
+        self.file_path_var.set("Файлы не выбраны")
+        logger.info("Список файлов очищен")
+
+    def validate_pdf_file(self, pdf_path: str) -> Tuple[bool, str]:
+        """Проверяет PDF файл на валидность и отсутствие защиты паролем"""
+        try:
+            # Проверка существования файла
+            if not os.path.exists(pdf_path):
+                return False, "Файл не найден"
+            
+            # Проверка размера
+            file_size_mb = os.path.getsize(pdf_path) / (1024 * 1024)
+            if file_size_mb > MAX_FILE_SIZE_MB:
+                return False, f"Файл слишком большой ({file_size_mb:.1f} МБ)"
+            
+            # Попытка открыть PDF
+            doc = fitz.open(pdf_path)
+            
+            # Проверка на защиту паролем
+            if doc.is_encrypted:
+                doc.close()
+                return False, "Файл защищен паролем"
+            
+            # Проверка на повреждение
+            if doc.page_count == 0:
+                doc.close()
+                return False, "Файл не содержит страниц"
+            
+            doc.close()
+            return True, "OK"
+            
+        except Exception as e:
+            logger.error(f"Ошибка валидации файла {pdf_path}: {e}")
+            return False, f"Ошибка при чтении файла: {str(e)}"
+
     def start_conversion(self):
+        """Запускает процесс конвертации"""
         if self.is_converting:
             return
             
-        if not self.pdf_path:
-            messagebox.showwarning("Внимание", "Пожалуйста, выберите PDF файл.")
+        if not self.pdf_paths:
+            messagebox.showwarning("Внимание", "Пожалуйста, выберите PDF файл(ы).")
             return
         
-        # Диалог сохранения
-        save_path = filedialog.asksaveasfilename(
-            title="Сохранить как",
-            defaultextension=".pptx",
-            initialfile=self.output_name_var.get(),
-            filetypes=[("PowerPoint файлы", "*.pptx"), ("Все файлы", "*.*")]
-        )
+        # Валидация всех файлов
+        for pdf_path in self.pdf_paths:
+            is_valid, message = self.validate_pdf_file(pdf_path)
+            if not is_valid:
+                messagebox.showerror("Ошибка", f"Файл {os.path.basename(pdf_path)}:\n{message}")
+                return
         
-        if not save_path:
-            return
+        # Определение пути сохранения
+        if len(self.pdf_paths) == 1:
+            # Для одного файла - диалог сохранения
+            base_name = os.path.splitext(os.path.basename(self.pdf_paths[0]))[0]
+            save_path = filedialog.asksaveasfilename(
+                title="Сохранить как",
+                defaultextension=".pptx",
+                initialfile=f"{base_name}.pptx",
+                filetypes=[("PowerPoint файлы", "*.pptx"), ("Все файлы", "*.*")]
+            )
+            if not save_path:
+                return
+            save_paths = [save_path]
+        else:
+            # Для нескольких файлов - выбор папки
+            save_dir = filedialog.askdirectory(title="Выберите папку для сохранения")
+            if not save_dir:
+                return
+            save_paths = [
+                os.path.join(save_dir, f"{os.path.splitext(os.path.basename(p))[0]}.pptx")
+                for p in self.pdf_paths
+            ]
         
         self.is_converting = True
         self.convert_btn.config(state="disabled", text="Конвертация...")
@@ -200,73 +352,103 @@ class PDFToPPTXConverter:
         self.status_var.set("Обработка...")
         
         # Запуск в отдельном потоке
-        thread = threading.Thread(target=self.convert_process, args=(save_path,))
+        thread = threading.Thread(target=self.convert_process, args=(save_paths,))
         thread.daemon = True
         thread.start()
     
-    def convert_process(self, save_path):
+    def convert_process(self, save_paths: List[str]):
+        """Процесс конвертации одного или нескольких PDF файлов"""
+        start_time = datetime.now()
+        total_files = len(save_paths)
+        
         try:
-            # Открытие PDF документа
-            pdf_doc = fitz.open(self.pdf_path)
-            total_pages = len(pdf_doc)
-            
-            # Размеры слайда 16:9
-            slide_width = Inches(10)
-            slide_height = Inches(7.5)
-            margin = Inches(0.5)
-            max_width = slide_width - (2 * margin)
-            max_height = slide_height - (2 * margin)
-            
-            # Создание презентации
-            prs = Presentation()
-            
-            # Удаляем пустой слайд по умолчанию
-            if len(prs.slides) > 0:
-                blank_slide = prs.slides[0]
-                prs.slides._sldIdLst.remove(blank_slide._element)
-            
-            blank_layout = prs.slide_layouts[6]
-            
-            for page_num in range(total_pages):
-                page = pdf_doc.load_page(page_num)
+            for file_idx, (pdf_path, save_path) in enumerate(zip(self.pdf_paths, save_paths), 1):
+                logger.info(f"Конвертация файла {file_idx}/{total_files}: {os.path.basename(pdf_path)}")
                 
-                # Создание нового слайда
-                slide = prs.slides.add_slide(blank_layout)
+                # Открытие PDF документа
+                pdf_doc = fitz.open(pdf_path)
+                total_pages = len(pdf_doc)
                 
-                # Извлечение блоков текста и изображений
-                blocks = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)["blocks"]
+                # Получение настроек качества и формата
+                quality_setting = QUALITY_SETTINGS.get(self.quality_var.get(), QUALITY_SETTINGS["Высокое"])
+                matrix = fitz.Matrix(quality_setting["matrix"], quality_setting["matrix"])
                 
-                # Получаем размеры страницы для масштабирования
-                page_rect = page.rect
+                orientation_setting = SUPPORTED_ORIENTATIONS.get(self.orientation_var.get(), SUPPORTED_ORIENTATIONS["16:9"])
+                slide_width, slide_height = orientation_setting
+                margin = Inches(0.5)
+                max_width = slide_width - (2 * margin)
+                max_height = slide_height - (2 * margin)
                 
-                # Обработка каждого блока
-                for block in blocks:
-                    btype = block.get("type")
+                # Создание презентации
+                prs = Presentation()
+                
+                # Удаляем пустой слайд по умолчанию
+                if len(prs.slides) > 0:
+                    blank_slide = prs.slides[0]
+                    prs.slides._sldIdLst.remove(blank_slide._element)
+                
+                blank_layout = prs.slide_layouts[6]
+                
+                for page_num in range(total_pages):
+                    page = pdf_doc.load_page(page_num)
                     
-                    if btype == 0:  # Текстовый блок
-                        self._add_text_block(slide, block, max_width, max_height, margin, page_rect)
-                    elif btype == 1:  # Изображение
-                        self._add_image_block(slide, page, block, max_width, max_height, margin, page_rect)
+                    # Создание нового слайда
+                    slide = prs.slides.add_slide(blank_layout)
+                    
+                    # Извлечение блоков текста и изображений
+                    blocks = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)["blocks"]
+                    
+                    # Получаем размеры страницы для масштабирования
+                    page_rect = page.rect
+                    
+                    # Обработка каждого блока
+                    for block in blocks:
+                        btype = block.get("type")
+                        
+                        if btype == 0:  # Текстовый блок
+                            self._add_text_block(slide, block, max_width, max_height, margin, page_rect)
+                        elif btype == 1:  # Изображение
+                            self._add_image_block(slide, page, block, max_width, max_height, margin, page_rect, matrix)
+                    
+                    # Очистка памяти
+                    del slide, blocks
+                    gc.collect()
+                    
+                    # Обновление прогресса с расчетом времени
+                    current_total = (file_idx - 1) * total_pages + (page_num + 1)
+                    total_all = total_files * total_pages
+                    progress = (current_total / total_all) * 100
+                    
+                    # Расчет оставшегося времени
+                    elapsed = (datetime.now() - start_time).total_seconds()
+                    if current_total > 0:
+                        estimated_total = elapsed / current_total * total_all
+                        remaining = estimated_total - elapsed
+                        eta_str = f" | Осталось: {remaining:.0f}с" if remaining > 0 else ""
+                    else:
+                        eta_str = ""
+                    
+                    self.root.after(0, lambda p=progress, c=current_total, t=total_all, e=eta_str: self.update_progress(p, c, t, e))
                 
-                # Очистка
-                del slide, blocks
+                pdf_doc.close()
+                del pdf_doc
+                gc.collect()
                 
-                # Обновление прогресса
-                progress = ((page_num + 1) / total_pages) * 100
-                self.root.after(0, lambda p=progress, n=page_num+1, t=total_pages: self.update_progress(p, n, t))
+                # Сохранение презентации
+                prs.save(save_path)
+                del prs
+                gc.collect()
+                
+                logger.info(f"Файл сохранен: {save_path}")
             
-            pdf_doc.close()
-            del pdf_doc
-            
-            # Сохранение презентации
-            prs.save(save_path)
-            del prs
-            
-            # Успешное завершение
-            self.root.after(0, lambda: self.conversion_complete(save_path))
+            # Успешное завершение всех файлов
+            elapsed_total = (datetime.now() - start_time).total_seconds()
+            logger.info(f"Конвертация завершена за {elapsed_total:.1f}с")
+            self.root.after(0, lambda: self.conversion_complete(save_paths, elapsed_total))
             
         except Exception as e:
             error_msg = str(e)
+            logger.error(f"Ошибка конвертации: {error_msg}", exc_info=True)
             self.root.after(0, lambda: self.conversion_error(error_msg))
     
     def _add_text_block(self, slide, block, max_width, max_height, margin, page_rect):
@@ -341,8 +523,8 @@ class PDFToPPTXConverter:
         
         del textbox, text_frame
     
-    def _add_image_block(self, slide, page, block, max_width, max_height, margin, page_rect):
-        """Добавляет изображение на слайд"""
+    def _add_image_block(self, slide, page, block, max_width, max_height, margin, page_rect, matrix=None):
+        """Добавляет изображение на слайд с учетом настроек качества"""
         # Получаем bbox изображения
         x0, y0, x1, y1 = block["bbox"]
         img_width = x1 - x0
@@ -367,6 +549,20 @@ class PDFToPPTXConverter:
                 if img_data:
                     img_bytes = img_data["image"]
                     
+                    # Оптимизация изображения (сжатие при необходимости)
+                    try:
+                        img = Image.open(io.BytesIO(img_bytes))
+                        if img.mode in ('RGBA', 'LA', 'P'):
+                            img = img.convert('RGB')
+                        
+                        # Сжатие JPEG с качеством 85%
+                        output = io.BytesIO()
+                        img.save(output, format='JPEG', quality=85, optimize=True)
+                        img_bytes = output.getvalue()
+                        del img, output
+                    except Exception:
+                        pass
+                    
                     # Добавляем изображение
                     slide.shapes.add_picture(
                         io.BytesIO(img_bytes), 
@@ -377,13 +573,13 @@ class PDFToPPTXConverter:
                     )
                     return
         except Exception as e:
-            pass
+            logger.debug(f"Не удалось извлечь оригинальное изображение: {e}")
         
         # Если не удалось извлечь оригинальное изображение, рендерим область
         try:
             clip = fitz.Rect(x0, y0, x1, y1)
-            matrix = fitz.Matrix(2, 2)
-            pix = page.get_pixmap(matrix=matrix, clip=clip)
+            render_matrix = matrix if matrix else fitz.Matrix(2, 2)
+            pix = page.get_pixmap(matrix=render_matrix, clip=clip)
             img_data = pix.tobytes("png")
             
             slide.shapes.add_picture(
@@ -395,11 +591,15 @@ class PDFToPPTXConverter:
             )
             del pix
         except Exception as e:
-            pass
-    
-    def update_progress(self, progress, current, total):
+            logger.debug(f"Ошибка рендеринга изображения: {e}")
+
+    def update_progress(self, progress, current, total, eta=""):
+        """Обновляет прогресс бар и статус с расчетом оставшегося времени"""
         self.progress_var.set(progress)
-        self.status_var.set(f"Страница {current} из {total}")
+        if eta:
+            self.status_var.set(f"Страница {current} из {total}{eta}")
+        else:
+            self.status_var.set(f"Страница {current} из {total}")
     
     def conversion_complete(self, save_path):
         self.is_converting = False

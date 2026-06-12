@@ -17,6 +17,29 @@
 
 ## 📥 Скачать
 
+### Офлайн-установщик (рекомендуется для установки без интернета)
+
+Скачайте полный пакет со всеми зависимостями на странице **[GitHub Releases](https://github.com/USERNAME/pdf-to-pptx-converter/releases)**:
+- `PDFToPPTXConverter-offline-v2.0.0.zip` — полный пакет (~100-150 МБ)
+
+**Установка:**
+```bash
+# Распакуйте архив
+unzip PDFToPPTXConverter-offline-v2.0.0.zip
+cd PDFToPPTXConverter-offline-v2.0.0
+
+# Установите зависимости (работает без интернета!)
+python3 offline_installer.py
+
+# Запустите приложение
+python3 pdf_to_pptx_gui.py
+
+# Или создайте DMG
+bash build_dmg.sh
+```
+
+### Исходный код
+
 Последнюю версию установщика можно скачать на странице **[GitHub Releases](https://github.com/USERNAME/pdf-to-pptx-converter/releases)**
 
 Или установите из исходников:
@@ -24,8 +47,17 @@
 ```bash
 git clone https://github.com/USERNAME/pdf-to-pptx-converter.git
 cd pdf-to-pptx-converter
+
+# С интернетом:
+pip3 install -r requirements.txt
+
+# Без интернета (предварительно скачав offline_deps):
+python3 offline_installer.py
+
 ./build_dmg.sh  # Создать DMG установщик
 ```
+
+📖 Подробная инструкция: [QUICK_START.md](QUICK_START.md), [OFFLINE_INSTALL.md](OFFLINE_INSTALL.md)
 
 ## Системные требования
 
