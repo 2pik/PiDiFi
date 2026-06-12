@@ -4,12 +4,14 @@
 PDF to PPTX Converter for macOS
 Графический интерфейс в стиле Apple Human Interface Guidelines
 Использует только стандартные библиотеки macOS
+Извлекает текст как текст, изображения как изображения
 """
 
 import sys
 import os
 import threading
 import io
+import base64
 
 # Проверка зависимостей перед запуском
 def check_dependencies():
@@ -49,7 +51,9 @@ if not deps_ok:
 # Импортируем проверенные модули
 import fitz  # PyMuPDF
 from pptx import Presentation
-from pptx.util import Inches
+from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN
 from PIL import Image
 
 try:
@@ -206,6 +210,13 @@ class PDFToPPTXConverter:
             pdf_doc = fitz.open(self.pdf_path)
             total_pages = len(pdf_doc)
             
+            # Размеры слайда 16:9
+            slide_width = Inches(10)
+            slide_height = Inches(7.5)
+            margin = Inches(0.5)
+            max_width = slide_width - (2 * margin)
+            max_height = slide_height - (2 * margin)
+            
             # Создание презентации
             prs = Presentation()
             
@@ -214,58 +225,42 @@ class PDFToPPTXConverter:
                 blank_slide = prs.slides[0]
                 prs.slides._sldIdLst.remove(blank_slide._element)
             
+            blank_layout = prs.slide_layouts[6]
+            
             for page_num in range(total_pages):
-                # Загрузка страницы
                 page = pdf_doc.load_page(page_num)
                 
-                # Рендеринг страницы в изображение (2x масштаб для качества)
-                matrix = fitz.Matrix(2.0, 2.0)
-                pixmap = page.get_pixmap(matrix=matrix)
-                
-                # Конвертация в PIL Image
-                img_data = pixmap.tobytes("png")
-                img = Image.open(io.BytesIO(img_data))
-                
                 # Создание нового слайда
-                slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
+                slide = prs.slides.add_slide(blank_layout)
                 
-                # Сохранение изображения в буфер
-                img_buffer = io.BytesIO()
-                img.save(img_buffer, format="PNG")
-                img_buffer.seek(0)
+                # Извлечение блоков текста и изображений
+                blocks = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)["blocks"]
                 
-                # Расчет размеров для центрирования
-                slide_width = prs.slide_width
-                slide_height = prs.slide_height
+                # Получаем размеры страницы для масштабирования
+                page_rect = page.rect
                 
-                # Конвертация размеров изображения в точки (1 дюйм = 72 точки)
-                img_width_pts = img.width * 72 / img.dpi[0] if img.dpi[0] > 0 else img.width
-                img_height_pts = img.height * 72 / img.dpi[1] if img.dpi[1] > 0 else img.height
+                # Обработка каждого блока
+                for block in blocks:
+                    btype = block.get("type")
+                    
+                    if btype == 0:  # Текстовый блок
+                        self._add_text_block(slide, block, max_width, max_height, margin, page_rect)
+                    elif btype == 1:  # Изображение
+                        self._add_image_block(slide, page, block, max_width, max_height, margin, page_rect)
                 
-                # Масштабирование чтобы влезло в слайд с полями
-                margin = Inches(0.5)
-                max_width = slide_width - (2 * margin)
-                max_height = slide_height - (2 * margin)
-                
-                scale = min(max_width / img_width_pts, max_height / img_height_pts, 1.0)
-                
-                final_width = img_width_pts * scale
-                final_height = img_height_pts * scale
-                
-                left = (slide_width - final_width) / 2
-                top = (slide_height - final_height) / 2
-                
-                # Добавление изображения на слайд
-                slide.shapes.add_picture(img_buffer, left, top, width=final_width, height=final_height)
+                # Очистка
+                del slide, blocks
                 
                 # Обновление прогресса
                 progress = ((page_num + 1) / total_pages) * 100
                 self.root.after(0, lambda p=progress, n=page_num+1, t=total_pages: self.update_progress(p, n, t))
             
             pdf_doc.close()
+            del pdf_doc
             
             # Сохранение презентации
             prs.save(save_path)
+            del prs
             
             # Успешное завершение
             self.root.after(0, lambda: self.conversion_complete(save_path))
@@ -273,6 +268,134 @@ class PDFToPPTXConverter:
         except Exception as e:
             error_msg = str(e)
             self.root.after(0, lambda: self.conversion_error(error_msg))
+    
+    def _add_text_block(self, slide, block, max_width, max_height, margin, page_rect):
+        """Добавляет текстовый блок на слайд"""
+        # Получаем границы блока
+        x0, y0, x1, y1 = block["bbox"]
+        
+        # Масштабируем координаты относительно размера страницы
+        scale_x = float(max_width) / float(page_rect.width)
+        scale_y = float(max_height) / float(page_rect.height)
+        
+        left = margin + (x0 * scale_x)
+        top = margin + (y0 * scale_y)
+        width = (x1 - x0) * scale_x
+        height = max((y1 - y0) * scale_y, Inches(0.5))  # Минимальная высота
+        
+        # Создаем textbox
+        textbox = slide.shapes.add_textbox(left, top, width, height)
+        text_frame = textbox.text_frame
+        text_frame.word_wrap = True
+        text_frame.clear()
+        
+        # Извлекаем текст из блока
+        full_text = ""
+        first_span_info = None
+        
+        for line in block.get("lines", []):
+            line_text = ""
+            for span in line.get("spans", []):
+                text = span.get("text", "")
+                line_text += text
+                
+                # Сохраняем информацию о первом span для форматирования
+                if first_span_info is None:
+                    first_span_info = {
+                        "size": span.get("size", 12),
+                        "font": span.get("font", "Arial"),
+                        "color": span.get("color", "#000000")
+                    }
+            
+            if line_text.strip():
+                if full_text:
+                    full_text += "\n"
+                full_text += line_text
+        
+        if full_text.strip():
+            # Устанавливаем текст
+            p = text_frame.paragraphs[0]
+            p.text = full_text
+            
+            # Применяем форматирование
+            if first_span_info:
+                p.font.size = Pt(first_span_info["size"])
+                p.font.name = first_span_info["font"]
+                
+                # Цвет
+                color = first_span_info["color"]
+                try:
+                    if isinstance(color, int):
+                        # Конвертируем из целого числа (формат PDF)
+                        r = (color >> 16) & 255
+                        g = (color >> 8) & 255
+                        b = color & 255
+                        p.font.color.rgb = RGBColor(r, g, b)
+                    elif isinstance(color, str) and color.startswith("#"):
+                        r = int(color[1:3], 16)
+                        g = int(color[3:5], 16)
+                        b = int(color[5:7], 16)
+                        p.font.color.rgb = RGBColor(r, g, b)
+                except Exception as e:
+                    pass
+        
+        del textbox, text_frame
+    
+    def _add_image_block(self, slide, page, block, max_width, max_height, margin, page_rect):
+        """Добавляет изображение на слайд"""
+        # Получаем bbox изображения
+        x0, y0, x1, y1 = block["bbox"]
+        img_width = x1 - x0
+        img_height = y1 - y0
+        
+        # Масштабируем координаты
+        scale_x = float(max_width) / float(page_rect.width)
+        scale_y = float(max_height) / float(page_rect.height)
+        
+        left = margin + (x0 * scale_x)
+        top = margin + (y0 * scale_y)
+        width = img_width * scale_x
+        height = img_height * scale_y
+        
+        # Извлекаем изображение из PDF
+        try:
+            # Получаем XREF изображения
+            xref = block.get("image")
+            if xref:
+                # Извлекаем изображение через xref
+                img_data = page.parent.extract_image(xref)
+                if img_data:
+                    img_bytes = img_data["image"]
+                    
+                    # Добавляем изображение
+                    slide.shapes.add_picture(
+                        io.BytesIO(img_bytes), 
+                        left, 
+                        top, 
+                        width=width, 
+                        height=height
+                    )
+                    return
+        except Exception as e:
+            pass
+        
+        # Если не удалось извлечь оригинальное изображение, рендерим область
+        try:
+            clip = fitz.Rect(x0, y0, x1, y1)
+            matrix = fitz.Matrix(2, 2)
+            pix = page.get_pixmap(matrix=matrix, clip=clip)
+            img_data = pix.tobytes("png")
+            
+            slide.shapes.add_picture(
+                io.BytesIO(img_data),
+                left,
+                top,
+                width=width,
+                height=height
+            )
+            del pix
+        except Exception as e:
+            pass
     
     def update_progress(self, progress, current, total):
         self.progress_var.set(progress)
