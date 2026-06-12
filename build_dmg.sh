@@ -6,32 +6,36 @@
 
 set -e
 
-# Определяем директорию скрипта
+# Определяем директорию скрипта (абсолютный путь)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
 
-# Экспортируем SCRIPT_DIR для использования в Python-скриптах
-export SCRIPT_DIR
-
+# Используем абсолютные пути для всех переменных
 APP_NAME="PDFToPPTXConverter"
 VERSION="2.2.0"
-BUILD_DIR="./build_installer"
-APP_BUNDLE="$BUILD_DIR/${APP_NAME}.app"
-DMG_FILE="${APP_NAME}-${VERSION}.dmg"
+BUILD_DIR="${SCRIPT_DIR}/build_installer"
+APP_BUNDLE="${BUILD_DIR}/${APP_NAME}.app"
+DMG_FILE="${SCRIPT_DIR}/${APP_NAME}-${VERSION}.dmg"
 VOLUME_NAME="${APP_NAME} v${VERSION}"
-OFFLINE_DEPS_DIR="./offline_deps"
+OFFLINE_DEPS_DIR="${SCRIPT_DIR}/offline_deps"
 TEMP_DMG="/tmp/${APP_NAME}_temp.dmg"
 
 # Определяем путь к Python
 PYTHON_CMD="python3"
 
 echo "📦 Создание установочного DMG файла..."
+echo "   Директория скрипта: ${SCRIPT_DIR}"
 
 # Очистка предыдущей сборки
 echo "🧹 Очистка предыдущей сборки..."
 rm -rf "$BUILD_DIR"
 rm -f "$DMG_FILE"
 rm -f "$TEMP_DMG"
+
+# Переходим в директорию скрипта
+cd "$SCRIPT_DIR"
+
+# Экспортируем SCRIPT_DIR для использования в Python-скриптах
+export SCRIPT_DIR
 
 # Функция проверки модуля
 check_module() {
