@@ -65,20 +65,29 @@ if [ -n "$MISSING_MODULES" ]; then
         if [ -n "$MISSING_MODULES" ]; then
             echo "❌ Не удалось установить зависимости из offline_deps"
             echo ""
-            echo "Варианты решения:"
-            echo "1. Запустите с интернетом: pip3 install -r requirements.txt"
-            echo "2. Скачайте зависимости: ./bundle_deps.sh (требуется интернет)"
-            exit 1
+            echo "🔄 Попытка установки через pip3 с интернетом..."
+            pip3 install --quiet PyMuPDF python-pptx Pillow || true
+            
+            # Финальная проверка
+            MISSING_MODULES=""
+            if ! check_module fitz; then MISSING_MODULES="$MISSING_MODULES PyMuPDF"; fi
+            if ! check_module pptx; then MISSING_MODULES="$MISSING_MODULES python-pptx"; fi
+            if ! check_module PIL; then MISSING_MODULES="$MISSING_MODULES Pillow"; fi
+            
+            if [ -n "$MISSING_MODULES" ]; then
+                echo "❌ Критическая ошибка: не удалось установить:$MISSING_MODULES"
+                echo "Попробуйте вручную: pip3 install PyMuPDF python-pptx Pillow"
+                exit 1
+            fi
         fi
-        echo "✅ Зависимости установлены из offline_deps"
+        echo "✅ Зависимости установлены"
     else
-        echo "❌ Ошибка: Отсутствуют необходимые модули:$MISSING_MODULES"
-        echo ""
-        echo "Варианты решения:"
-        echo "1. Запустите с интернетом: pip3 install -r requirements.txt"
-        echo "2. Скачайте зависимости заранее: ./bundle_deps.sh"
-        echo "   Затем передайте папку offline_deps пользователю"
-        exit 1
+        echo "📦 Офлайн-зависимости не найдены. Установка через pip3..."
+        pip3 install --quiet PyMuPDF python-pptx Pillow || {
+            echo "❌ Ошибка установки через pip3. Проверьте подключение к интернету."
+            exit 1
+        }
+        echo "✅ Зависимости установлены через pip3"
     fi
 fi
 echo "✅ Все зависимости установлены"
