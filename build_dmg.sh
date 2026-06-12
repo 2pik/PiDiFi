@@ -29,68 +29,48 @@ check_module() {
     return $?
 }
 
-# Проверка зависимостей
-echo "🔍 Проверка зависимостей..."
-MISSING_MODULES=""
-if ! check_module fitz; then
-    MISSING_MODULES="$MISSING_MODULES PyMuPDF"
-fi
-if ! check_module pptx; then
-    MISSING_MODULES="$MISSING_MODULES python-pptx"
-fi
-if ! check_module PIL; then
-    MISSING_MODULES="$MISSING_MODULES Pillow"
+# ПРИНУДИТЕЛЬНАЯ установка зависимостей ПЕРЕД любыми другими действиями
+echo "🔍 Проверка и установка зависимостей..."
+
+# Проверяем, что нужно установить
+NEEDS_INSTALL=false
+if ! check_module fitz || ! check_module pptx || ! check_module PIL; then
+    NEEDS_INSTALL=true
 fi
 
-# Если есть отсутствующие модули, пробуем установить из offline_deps
-if [ -n "$MISSING_MODULES" ]; then
-    echo "⚠️  Отсутствуют модули:$MISSING_MODULES"
+if [ "$NEEDS_INSTALL" = true ]; then
+    echo "📦 Установка необходимых библиотек..."
     
+    # Сначала пробуем offline_deps
     if [ -d "$OFFLINE_DEPS_DIR" ] && [ "$(ls -A $OFFLINE_DEPS_DIR/*.whl 2>/dev/null)" ]; then
-        echo "📦 Попытка установки из локальных wheel файлов..."
-        python3 offline_installer.py
-        
-        # Повторная проверка
-        MISSING_MODULES=""
-        if ! check_module fitz; then
-            MISSING_MODULES="$MISSING_MODULES PyMuPDF"
-        fi
-        if ! check_module pptx; then
-            MISSING_MODULES="$MISSING_MODULES python-pptx"
-        fi
-        if ! check_module PIL; then
-            MISSING_MODULES="$MISSING_MODULES Pillow"
-        fi
-        
-        if [ -n "$MISSING_MODULES" ]; then
-            echo "❌ Не удалось установить зависимости из offline_deps"
-            echo ""
-            echo "🔄 Попытка установки через pip3 с интернетом..."
-            pip3 install --quiet PyMuPDF python-pptx Pillow || true
-            
-            # Финальная проверка
-            MISSING_MODULES=""
-            if ! check_module fitz; then MISSING_MODULES="$MISSING_MODULES PyMuPDF"; fi
-            if ! check_module pptx; then MISSING_MODULES="$MISSING_MODULES python-pptx"; fi
-            if ! check_module PIL; then MISSING_MODULES="$MISSING_MODULES Pillow"; fi
-            
-            if [ -n "$MISSING_MODULES" ]; then
-                echo "❌ Критическая ошибка: не удалось установить:$MISSING_MODULES"
-                echo "Попробуйте вручную: pip3 install PyMuPDF python-pptx Pillow"
-                exit 1
-            fi
-        fi
-        echo "✅ Зависимости установлены"
-    else
-        echo "📦 Офлайн-зависимости не найдены. Установка через pip3..."
-        pip3 install --quiet PyMuPDF python-pptx Pillow || {
-            echo "❌ Ошибка установки через pip3. Проверьте подключение к интернету."
-            exit 1
-        }
-        echo "✅ Зависимости установлены через pip3"
+        echo "   📥 Установка из локальных wheel файлов..."
+        python3 offline_installer.py || true
     fi
+    
+    # Проверяем снова
+    if ! check_module fitz || ! check_module pptx || ! check_module PIL; then
+        echo "   🌐 Установка через pip3..."
+        pip3 install --quiet --upgrade PyMuPDF python-pptx Pillow
+    fi
+    
+    # Финальная проверка
+    if ! check_module fitz; then
+        echo "❌ Критическая ошибка: не удалось установить PyMuPDF"
+        exit 1
+    fi
+    if ! check_module pptx; then
+        echo "❌ Критическая ошибка: не удалось установить python-pptx"
+        exit 1
+    fi
+    if ! check_module PIL; then
+        echo "❌ Критическая ошибка: не удалось установить Pillow"
+        exit 1
+    fi
+    
+    echo "✅ Все зависимости успешно установлены"
+else
+    echo "✅ Все зависимости уже установлены"
 fi
-echo "✅ Все зависимости установлены"
 
 # Создание структуры приложения
 echo "📁 Создание структуры приложения..."
