@@ -53,7 +53,7 @@ echo "📁 Создание структуры приложения..."
 mkdir -p "${APP_BUNDLE}/Contents/MacOS"
 mkdir -p "${APP_BUNDLE}/Contents/Resources"
 
-# Info.plist
+# Info.plist с правильными настройками для скрытия Python из меню
 cat > "${APP_BUNDLE}/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -77,19 +77,57 @@ cat > "${APP_BUNDLE}/Contents/Info.plist" << EOF
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
+    <key>LSPrincipalClass</key>
+    <string>NSApplication</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>LSUIElement</key>
     <false/>
+    <key>LSBackgroundOnly</key>
+    <false/>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    <key>NSRequiresAquaSystemAppearance</key>
+    <false/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
+    <key>CFBundleDocumentTypes</key>
+    <array/>
+    <key>NSAppleScriptEnabled</key>
+    <false/>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Приложению требуется доступ к файлам PDF для конвертации</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Приложению требуется доступ к файлам PDF для конвертации</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Приложению требуется доступ к файлам PDF для конвертации</string>
+    <key>NSFileSystemUsageDescription</key>
+    <string>Приложению требуется доступ к файлам для конвертации</string>
 </dict>
 </plist>
 EOF
 
-# Launcher
+# Launcher - правильный способ запуска Python приложения как macOS app
 cat > "${APP_BUNDLE}/Contents/MacOS/Launcher" << 'LAUNCHER'
 #!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
-exec python3 "${SCRIPT_DIR}/pdf_to_pptx_gui.py" "$@"
+# Получаем путь к ресурсам внутри .app бандла
+RESOURCES_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
+
+# Устанавливаем переменные окружения для правильного поведения приложения
+export PYAPP_NAME="PDFToPPTXConverter"
+export PYTHONNOUSERSITE=1
+export TK_SILENCE_DEPRECATION=1
+export PYTHONPATH="${RESOURCES_DIR}:${PYTHONPATH}"
+export PYTHONIOENCODING=utf-8
+export PYTHONVERBOSE=0
+
+# Переходим в домашнюю директорию чтобы избежать блокировки файлов
+cd $HOME
+
+# Запускаем приложение с правильной обработкой ошибок
+exec python3 "${RESOURCES_DIR}/pdf_to_pptx_gui.py" "$@" 2>&1 | tee "${RESOURCES_DIR}/launcher.log"
 LAUNCHER
 chmod +x "${APP_BUNDLE}/Contents/MacOS/Launcher"
 
@@ -101,8 +139,9 @@ cp "${SCRIPT_DIR}/requirements.txt" "${APP_BUNDLE}/Contents/Resources/"
 
 # Создание иконки
 echo "🎨 Создание иконки..."
+export SCRIPT_DIR="${SCRIPT_DIR}"
 $PYTHON_CMD << 'PYICON'
-import struct, zlib, os
+import struct, zlib, os, sys
 
 def create_png(w, h):
     raw = b''

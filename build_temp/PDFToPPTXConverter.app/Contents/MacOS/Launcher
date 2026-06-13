@@ -1,3 +1,0 @@
-#!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
-exec python3 "${SCRIPT_DIR}/pdf_to_pptx_gui.py" "$@"

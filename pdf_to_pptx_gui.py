@@ -52,7 +52,7 @@ logger = setup_logging()
 MAX_FILE_SIZE_MB = 100
 
 # Настройки ориентации будут инициализированы после импорта Inches
-SUPPORTED_ORIENTATIONS = None
+# Временное значение будет заменено после импорта
 
 QUALITY_SETTINGS = {
     "Низкое": {"dpi": 72, "matrix": 1.0},
@@ -101,7 +101,7 @@ from pptx.enum.text import PP_ALIGN
 
 # Инициализация SUPPORTED_ORIENTATIONS после импорта Inches
 SUPPORTED_ORIENTATIONS = {
-    "16:9": (Inches(10), Inches(7.5)),
+    "16:9": (Inches(10), Inches(5.625)),
     "4:3": (Inches(10), Inches(7.5)),
     "A4": (Inches(11.69), Inches(8.27))
 }
@@ -131,9 +131,13 @@ def get_quality_matrix(quality_name: str):
 class PDFToPPTXConverter:
     def __init__(self, root):
         self.root = root
-        self.root.title("PDF в PPTX Конвертер")
-        self.root.geometry("650x550")
-        self.root.resizable(False, False)
+        
+        # Принудительно обновляем окно ПЕРЕД любыми операциями
+        self.root.update_idletasks()
+        self.root.update()
+        
+        # Устанавливаем минимальный размер окна до создания виджетов
+        self.root.minsize(650, 550)
         
         # Настройка стиля (кроссплатформенная)
         self.style = ttk.Style()
@@ -151,7 +155,12 @@ class PDFToPPTXConverter:
         self.quality_var = tk.StringVar(value="Высокое")
         self.orientation_var = tk.StringVar(value="16:9")
         
+        # Создаем виджеты
         self.create_widgets()
+        
+        # Еще одно обновление после создания всех виджетов
+        self.root.update_idletasks()
+        self.root.update()
     
     def create_widgets(self):
         # Настройка конфигурации grid для главного окна
@@ -630,16 +639,26 @@ class PDFToPPTXConverter:
         else:
             self.status_var.set(f"Страница {current} из {total}")
     
-    def conversion_complete(self, save_path):
+    def conversion_complete(self, save_paths, elapsed_time=0):
+        """Обработчик успешного завершения конвертации"""
         self.is_converting = False
         self.convert_btn.config(state="normal", text="Конвертировать")
         self.progress_var.set(100)
         self.status_var.set("Готово!")
         
-        messagebox.showinfo(
-            "Успешно!",
-            f"Файл успешно сконвертирован!\n\n{save_path}\n\nТеперь вы можете открыть его в PowerPoint или Keynote."
-        )
+        # Обработка одиночного пути или списка путей
+        if isinstance(save_paths, list):
+            if len(save_paths) == 1:
+                save_path = save_paths[0]
+                msg = f"Файл успешно сконвертирован за {elapsed_time:.1f}с!\n\n{save_path}\n\nТеперь вы можете открыть его в PowerPoint или Keynote."
+            else:
+                msg = f"Успешно сконвертировано файлов: {len(save_paths)}\n\nВремя: {elapsed_time:.1f}с\n\nФайлы сохранены:\n" + "\n".join(f"• {p}" for p in save_paths)
+        else:
+            save_path = str(save_paths)
+            msg = f"Файл успешно сконвертирован за {elapsed_time:.1f}с!\n\n{save_path}\n\nТеперь вы можете открыть его в PowerPoint или Keynote."
+        
+        logger.info(f"Конвертация завершена: {save_paths}")
+        messagebox.showinfo("Успешно!", msg)
     
     def conversion_error(self, error):
         self.is_converting = False
@@ -654,17 +673,69 @@ class PDFToPPTXConverter:
 
 
 def main():
-    root = tk.Tk()
+    logger.info("=" * 50)
+    logger.info("ЗАПУСК ПРИЛОЖЕНИЯ")
+    logger.info(f"Платформа: {sys.platform}")
+    logger.info(f"Python версия: {sys.version}")
+    logger.info(f"Аргументы: {sys.argv}")
     
-    # Настройка иконки приложения (если есть)
     try:
-        if sys.platform == "darwin":
-            root.tk.call('wm', 'iconphoto', root._w, tk.PhotoImage())
-    except:
-        pass
+        root = tk.Tk()
+        logger.info("tk.Tk() успешно создан")
+    except Exception as e:
+        logger.error(f"Ошибка создания tk.Tk(): {e}", exc_info=True)
+        raise
     
-    app = PDFToPPTXConverter(root)
+    root.title("PDF в PPTX Конвертер")
+    
+    # Настройка приложения для macOS (убирает пункт "Python" из меню)
+    if sys.platform == "darwin":
+        try:
+            # Создаем пустое меню чтобы убрать стандартное "Python" меню
+            from tkinter import Menu
+            menubar = Menu(root)
+            root.config(menu=menubar)
+            
+            # Устанавливаем имя приложения для macOS
+            root.wm_attributes('-name', 'pdftopptxconverter')
+            logger.info("Настройки macOS применены")
+        except Exception as e:
+            logger.warning(f"Не удалось настроить меню для macOS: {e}")
+
+    # Сразу устанавливаем размеры и центрирование ДО создания виджетов
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    x = (screen_width - 650) // 2
+    y = (screen_height - 550) // 2
+    root.geometry(f"650x550+{x}+{y}")
+    root.resizable(False, False)
+    logger.info(f"Размер окна установлен: 650x550+{x}+{y}")
+
+    try:
+        # Создаем приложение
+        logger.info("Создание экземпляра PDFToPPTXConverter...")
+        app = PDFToPPTXConverter(root)
+        logger.info("PDFToPPTXConverter создан успешно")
+    except Exception as e:
+        logger.error(f"Ошибка создания PDFToPPTXConverter: {e}", exc_info=True)
+        messagebox.showerror("Ошибка", f"Не удалось создать интерфейс:\n{e}")
+        root.destroy()
+        raise
+
+    # Принудительное обновление окна после создания всех виджетов
+    logger.info("Обновление окна...")
+    root.update_idletasks()
+    root.update()
+    logger.info("Окно обновлено")
+
+    # Поднятие окна на передний план
+    logger.info("Поднятие окна на передний план")
+    root.attributes('-topmost', True)
+    root.after(200, lambda: root.attributes('-topmost', False))
+
+    logger.info("Запуск mainloop()...")
     root.mainloop()
+    logger.info("Приложение закрыто")
 
 
 if __name__ == "__main__":
