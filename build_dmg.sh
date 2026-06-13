@@ -89,25 +89,37 @@ cat > "${APP_BUNDLE}/Contents/Info.plist" << EOF
     <true/>
     <key>NSRequiresAquaSystemAppearance</key>
     <false/>
-    <key>PyApp</key>
-    <dict>
-        <key>py_version</key>
-        <string>3.11</string>
-        <key>py_module</key>
-        <string>pdf_to_pptx_gui</string>
-    </dict>
+    <!-- Специальные настройки для скрытия Python из меню -->
+    <key>LSMultipleInstancesProhibited</key>
+    <false/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Приложению требуется доступ к файловой системе</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Приложению требуется доступ к файлам PDF</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Приложению требуется доступ к файлам PDF</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Приложению требуется доступ к файлам PDF</string>
+    <key>NSFileSystemUsageDescription</key>
+    <string>Приложению требуется доступ к файлам для конвертации</string>
 </dict>
 </plist>
 EOF
 
-# Launcher
+# Launcher - правильный способ запуска Python приложения как macOS app
 cat > "${APP_BUNDLE}/Contents/MacOS/Launcher" << 'LAUNCHER'
 #!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
-# Устанавливаем переменные для скрытия Python из меню
+# Получаем путь к ресурсам внутри .app бандла
+RESOURCES_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
+
+# Устанавливаем переменные окружения для правильного поведения приложения
 export PYAPP_NAME="PDFToPPTXConverter"
 export PYTHONNOUSERSITE=1
-exec python3 -W ignore "${SCRIPT_DIR}/pdf_to_pptx_gui.py" "$@"
+export TK_SILENCE_DEPRECATION=1
+export PYTHONPATH="${RESOURCES_DIR}:${PYTHONPATH}"
+
+# Запускаем приложение в фоновом режиме с правильными флагами
+exec python3 -W ignore -u "${RESOURCES_DIR}/pdf_to_pptx_gui.py" "$@"
 LAUNCHER
 chmod +x "${APP_BUNDLE}/Contents/MacOS/Launcher"
 

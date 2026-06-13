@@ -131,9 +131,9 @@ def get_quality_matrix(quality_name: str):
 class PDFToPPTXConverter:
     def __init__(self, root):
         self.root = root
-        self.root.title("PDF в PPTX Конвертер")
-        self.root.geometry("650x550")
-        self.root.resizable(False, False)
+        
+        # Устанавливаем минимальный размер окна до создания виджетов
+        self.root.minsize(650, 550)
         
         # Настройка стиля (кроссплатформенная)
         self.style = ttk.Style()
@@ -150,6 +150,9 @@ class PDFToPPTXConverter:
         self.is_converting = False
         self.quality_var = tk.StringVar(value="Высокое")
         self.orientation_var = tk.StringVar(value="16:9")
+        
+        # Принудительно обновляем окно перед созданием виджетов
+        self.root.update_idletasks()
         
         self.create_widgets()
     
@@ -655,45 +658,40 @@ class PDFToPPTXConverter:
 
 def main():
     root = tk.Tk()
+    root.title("PDF в PPTX Конвертер")
     
     # Настройка приложения для macOS (убирает пункт "Python" из меню)
     if sys.platform == "darwin":
         try:
-            # Создаем объектное меню для macOS
+            # Создаем пустое меню чтобы убрать стандартное "Python" меню
             from tkinter import Menu
             menubar = Menu(root)
             root.config(menu=menubar)
             
-            # Пустое меню предотвращает появление стандартного "Python" меню
-            # Но оставляем возможность добавить меню в будущем
+            # Устанавливаем имя приложения для macOS
+            root.wm_attributes('-name', 'pdftopptxconverter')
         except Exception as e:
             logger.warning(f"Не удалось настроить меню для macOS: {e}")
-    
-    # Настройка иконки приложения (если есть)
-    try:
-        if sys.platform == "darwin":
-            # Пустая иконка чтобы использовать системную
-            root.tk.call('wm', 'iconphoto', root._w, tk.PhotoImage())
-    except Exception as e:
-        logger.warning(f"Не удалось установить иконку: {e}")
-    
-    # Принудительное обновление окна после создания всех виджетов
-    root.update_idletasks()
-    
-    app = PDFToPPTXConverter(root)
-    
-    # Центрирование окна на экране
-    root.update_idletasks()
+
+    # Сразу устанавливаем размеры и центрирование ДО создания виджетов
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
     x = (screen_width - 650) // 2
     y = (screen_height - 550) // 2
     root.geometry(f"650x550+{x}+{y}")
-    
+    root.resizable(False, False)
+
+    # Создаем приложение
+    app = PDFToPPTXConverter(root)
+
+    # Принудительное обновление окна после создания всех виджетов
+    root.update_idletasks()
+    root.update()
+
     # Поднятие окна на передний план
     root.attributes('-topmost', True)
     root.after(200, lambda: root.attributes('-topmost', False))
-    
+
     root.mainloop()
 
 

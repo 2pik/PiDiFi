@@ -32,5 +32,18 @@
     <true/>
     <key>NSRequiresAquaSystemAppearance</key>
     <false/>
+    <!-- Специальные настройки для скрытия Python из меню -->
+    <key>LSMultipleInstancesProhibited</key>
+    <false/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Приложению требуется доступ к файловой системе</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Приложению требуется доступ к файлам PDF</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Приложению требуется доступ к файлам PDF</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Приложению требуется доступ к файлам PDF</string>
+    <key>NSFileSystemUsageDescription</key>
+    <string>Приложению требуется доступ к файлам для конвертации</string>
 </dict>
 </plist>
