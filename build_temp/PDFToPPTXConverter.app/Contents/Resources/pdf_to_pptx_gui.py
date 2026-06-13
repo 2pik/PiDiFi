@@ -657,7 +657,19 @@ class PDFToPPTXConverter:
 
 
 def main():
-    root = tk.Tk()
+    logger.info("=" * 50)
+    logger.info("ЗАПУСК ПРИЛОЖЕНИЯ")
+    logger.info(f"Платформа: {sys.platform}")
+    logger.info(f"Python версия: {sys.version}")
+    logger.info(f"Аргументы: {sys.argv}")
+    
+    try:
+        root = tk.Tk()
+        logger.info("tk.Tk() успешно создан")
+    except Exception as e:
+        logger.error(f"Ошибка создания tk.Tk(): {e}", exc_info=True)
+        raise
+    
     root.title("PDF в PPTX Конвертер")
     
     # Настройка приложения для macOS (убирает пункт "Python" из меню)
@@ -670,6 +682,7 @@ def main():
             
             # Устанавливаем имя приложения для macOS
             root.wm_attributes('-name', 'pdftopptxconverter')
+            logger.info("Настройки macOS применены")
         except Exception as e:
             logger.warning(f"Не удалось настроить меню для macOS: {e}")
 
@@ -680,19 +693,33 @@ def main():
     y = (screen_height - 550) // 2
     root.geometry(f"650x550+{x}+{y}")
     root.resizable(False, False)
+    logger.info(f"Размер окна установлен: 650x550+{x}+{y}")
 
-    # Создаем приложение
-    app = PDFToPPTXConverter(root)
+    try:
+        # Создаем приложение
+        logger.info("Создание экземпляра PDFToPPTXConverter...")
+        app = PDFToPPTXConverter(root)
+        logger.info("PDFToPPTXConverter создан успешно")
+    except Exception as e:
+        logger.error(f"Ошибка создания PDFToPPTXConverter: {e}", exc_info=True)
+        messagebox.showerror("Ошибка", f"Не удалось создать интерфейс:\n{e}")
+        root.destroy()
+        raise
 
     # Принудительное обновление окна после создания всех виджетов
+    logger.info("Обновление окна...")
     root.update_idletasks()
     root.update()
+    logger.info("Окно обновлено")
 
     # Поднятие окна на передний план
+    logger.info("Поднятие окна на передний план")
     root.attributes('-topmost', True)
     root.after(200, lambda: root.attributes('-topmost', False))
 
+    logger.info("Запуск mainloop()...")
     root.mainloop()
+    logger.info("Приложение закрыто")
 
 
 if __name__ == "__main__":
