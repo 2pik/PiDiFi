@@ -1,9 +1,1 @@
-```
-# Compiled Python files
-*.pyc
-__pycache__/
-
-# Logs
-*.log
-converter.log
-```
+(pdf_to_pptx_gui.py is a source file, and there are no build artifacts, dependencies, or temporary files in the changes)
