@@ -593,14 +593,39 @@ def main():
     # Создаем окно
     root = tk.Tk()
     
-    # ВАЖНО: Устанавливаем имя приложения для macOS ДО создания интерфейса
-    # Это убирает "Python" из верхнего меню и показывает "PDF в PPTX Конвертер"
+    # Настройка имени приложения для macOS - убираем "Python" из меню
     if sys.platform == "darwin":
         try:
-            # Устанавливаем имя приложения через Tkinter
-            root.tk.call('tk::mac::setAppName', 'PDF в PPTX Конвертер')
-        except Exception:
-            pass
+            import objc
+            from Foundation import NSBundle
+            from AppKit import NSApplication
+            
+            # Устанавливаем имя приложения
+            bundle = NSBundle.mainBundle()
+            info = bundle.infoDictionary()
+            if info is not None:
+                info['CFBundleName'] = 'PDF в PPTX Конвертер'
+            
+            # Инициализируем NSApplication и меняем название в меню
+            app = NSApplication.sharedApplication()
+            app.setActivationPolicy_(0)
+            
+            # Меняем название первого пункта меню
+            menubar = app.mainMenu()
+            if menubar and menubar.numberOfItems() > 0:
+                first_item = menubar.itemAtIndex_(0)
+                if first_item:
+                    submenu = first_item.submenu()
+                    if submenu:
+                        submenu.setTitle_('PDF в PPTX Конвертер')
+        except Exception as e:
+            logger.debug(f"Не удалось настроить macOS меню: {e}")
+            # Запасной вариант через osascript
+            try:
+                import subprocess
+                subprocess.run(['osascript', '-e', 'tell application "System Events" to set name of first process whose unix id is {} to "PDF в PPTX Конвертер"'.format(os.getpid())], timeout=1)
+            except Exception:
+                pass
     
     # Устанавливаем заголовок окна
     root.title("PDF в PPTX Конвертер")
