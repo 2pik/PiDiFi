@@ -4,10 +4,15 @@ build_temp/
 *.app
 *.dmg
 *.pkg
+*.zip
+*.tar
+*.gz
+*.bz2
+*.xz
 
 # Python specific
-__pycache__/
 *.pyc
+__pycache__/
 *.pyo
 *.pyd
 .Python
@@ -15,7 +20,11 @@ env/
 venv/
 .venv/
 .ENV
+.ENV.*
 .python-version
+
+# Logs
+*.log
 
 # OS generated files
 .DS_Store
@@ -26,39 +35,16 @@ venv/
 ehthumbs.db
 Thumbs.db
 
-# Logs
-*.log
-
 # IDE specific
 .vscode/
 .idea/
 *.swp
 *.swo
+*.tmp
 
-# Distribution / packaging
-.Python
-env/
-venv/
-ENV/
-.venv/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
+# Coverage reports
+coverage/
+htmlcov/
 .coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.out
-*.exe
-*.dll
-*.so
-*.dylib
-
-# PyInstaller
-*.manifest
-*.spec
-build/
-dist/
+*.coverage
 ```

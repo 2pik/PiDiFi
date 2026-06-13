@@ -52,7 +52,7 @@ logger = setup_logging()
 MAX_FILE_SIZE_MB = 100
 
 # Настройки ориентации будут инициализированы после импорта Inches
-SUPPORTED_ORIENTATIONS = None
+# Временное значение будет заменено после импорта
 
 QUALITY_SETTINGS = {
     "Низкое": {"dpi": 72, "matrix": 1.0},
@@ -101,7 +101,7 @@ from pptx.enum.text import PP_ALIGN
 
 # Инициализация SUPPORTED_ORIENTATIONS после импорта Inches
 SUPPORTED_ORIENTATIONS = {
-    "16:9": (Inches(10), Inches(7.5)),
+    "16:9": (Inches(10), Inches(5.625)),
     "4:3": (Inches(10), Inches(7.5)),
     "A4": (Inches(11.69), Inches(8.27))
 }
