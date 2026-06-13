@@ -131,9 +131,7 @@ def get_quality_matrix(quality_name: str):
 class PDFToPPTXConverter:
     def __init__(self, root):
         self.root = root
-        self.root.title("PDF в PPTX Конвертер")
-        self.root.geometry("650x550")
-        self.root.resizable(False, False)
+        # Не устанавливаем title/geometry здесь, так как это делается в main()
         
         # Настройка стиля (кроссплатформенная)
         self.style = ttk.Style()
@@ -151,6 +149,7 @@ class PDFToPPTXConverter:
         self.quality_var = tk.StringVar(value="Высокое")
         self.orientation_var = tk.StringVar(value="16:9")
         
+        # Создаем виджеты
         self.create_widgets()
     
     def create_widgets(self):
@@ -655,6 +654,12 @@ class PDFToPPTXConverter:
 
 def main():
     root = tk.Tk()
+    root.title("PDF в PPTX Конвертер")
+    root.geometry("650x550")
+    root.resizable(False, False)
+    
+    # Принудительно обновляем окно перед созданием виджетов
+    root.update_idletasks()
     
     # Настройка иконки приложения (если есть)
     try:
@@ -664,6 +669,13 @@ def main():
         pass
     
     app = PDFToPPTXConverter(root)
+    
+    # Принудительно отображаем все виджеты
+    root.update()
+    root.deiconify()
+    root.focus_force()
+    root.lift()
+    
     root.mainloop()
 
 
