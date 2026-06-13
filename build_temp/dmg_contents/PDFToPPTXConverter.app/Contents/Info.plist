@@ -20,36 +20,32 @@
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
+    <key>LSPrincipalClass</key>
+    <string>NSApplication</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>LSUIElement</key>
-    <string>false</string>
+    <false/>
     <key>LSBackgroundOnly</key>
-    <string>false</string>
+    <false/>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
     <key>NSRequiresAquaSystemAppearance</key>
     <false/>
-    <key>NSAppleScriptEnabled</key>
-    <false/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.utilities</string>
-    <!-- Убираем меню Python -->
     <key>CFBundleDocumentTypes</key>
     <array/>
-    <!-- Специальные настройки для скрытия Python из меню -->
-    <key>LSMultipleInstancesProhibited</key>
+    <key>NSAppleScriptEnabled</key>
     <false/>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>Приложению требуется доступ к файловой системе</string>
     <key>NSDesktopFolderUsageDescription</key>
-    <string>Приложению требуется доступ к файлам PDF</string>
+    <string>Приложению требуется доступ к файлам PDF для конвертации</string>
     <key>NSDocumentsFolderUsageDescription</key>
-    <string>Приложению требуется доступ к файлам PDF</string>
+    <string>Приложению требуется доступ к файлам PDF для конвертации</string>
     <key>NSDownloadsFolderUsageDescription</key>
-    <string>Приложению требуется доступ к файлам PDF</string>
+    <string>Приложению требуется доступ к файлам PDF для конвертации</string>
     <key>NSFileSystemUsageDescription</key>
     <string>Приложению требуется доступ к файлам для конвертации</string>
 </dict>
