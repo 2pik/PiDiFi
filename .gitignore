@@ -1,1 +1,39 @@
-Nothing needs to be added to the .gitignore file based on the provided file changes. The deleted files are all documentation/markdown files which should not be ignored, and there are no build artifacts, dependency directories, or temporary files in the changes that would warrant adding new ignore rules.
+```
+# Build artifacts and temporary files
+build_temp/
+*.app
+*.dmg
+*.pkg
+*.zip
+
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.ENV
+.ENV.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+```

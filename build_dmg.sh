@@ -53,7 +53,7 @@ echo "📁 Создание структуры приложения..."
 mkdir -p "${APP_BUNDLE}/Contents/MacOS"
 mkdir -p "${APP_BUNDLE}/Contents/Resources"
 
-# Info.plist
+# Info.plist с правильными настройками для скрытия Python из меню
 cat > "${APP_BUNDLE}/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -81,6 +81,21 @@ cat > "${APP_BUNDLE}/Contents/Info.plist" << EOF
     <string>NSApplication</string>
     <key>LSUIElement</key>
     <false/>
+    <key>LSBackgroundOnly</key>
+    <false/>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    <key>NSRequiresAquaSystemAppearance</key>
+    <false/>
+    <key>PyApp</key>
+    <dict>
+        <key>py_version</key>
+        <string>3.11</string>
+        <key>py_module</key>
+        <string>pdf_to_pptx_gui</string>
+    </dict>
 </dict>
 </plist>
 EOF
@@ -89,7 +104,10 @@ EOF
 cat > "${APP_BUNDLE}/Contents/MacOS/Launcher" << 'LAUNCHER'
 #!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
-exec python3 "${SCRIPT_DIR}/pdf_to_pptx_gui.py" "$@"
+# Устанавливаем переменные для скрытия Python из меню
+export PYAPP_NAME="PDFToPPTXConverter"
+export PYTHONNOUSERSITE=1
+exec python3 -W ignore "${SCRIPT_DIR}/pdf_to_pptx_gui.py" "$@"
 LAUNCHER
 chmod +x "${APP_BUNDLE}/Contents/MacOS/Launcher"
 
@@ -101,8 +119,9 @@ cp "${SCRIPT_DIR}/requirements.txt" "${APP_BUNDLE}/Contents/Resources/"
 
 # Создание иконки
 echo "🎨 Создание иконки..."
+export SCRIPT_DIR="${SCRIPT_DIR}"
 $PYTHON_CMD << 'PYICON'
-import struct, zlib, os
+import struct, zlib, os, sys
 
 def create_png(w, h):
     raw = b''

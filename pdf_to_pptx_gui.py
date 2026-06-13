@@ -656,14 +656,44 @@ class PDFToPPTXConverter:
 def main():
     root = tk.Tk()
     
+    # Настройка приложения для macOS (убирает пункт "Python" из меню)
+    if sys.platform == "darwin":
+        try:
+            # Создаем объектное меню для macOS
+            from tkinter import Menu
+            menubar = Menu(root)
+            root.config(menu=menubar)
+            
+            # Пустое меню предотвращает появление стандартного "Python" меню
+            # Но оставляем возможность добавить меню в будущем
+        except Exception as e:
+            logger.warning(f"Не удалось настроить меню для macOS: {e}")
+    
     # Настройка иконки приложения (если есть)
     try:
         if sys.platform == "darwin":
+            # Пустая иконка чтобы использовать системную
             root.tk.call('wm', 'iconphoto', root._w, tk.PhotoImage())
-    except:
-        pass
+    except Exception as e:
+        logger.warning(f"Не удалось установить иконку: {e}")
+    
+    # Принудительное обновление окна после создания всех виджетов
+    root.update_idletasks()
     
     app = PDFToPPTXConverter(root)
+    
+    # Центрирование окна на экране
+    root.update_idletasks()
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    x = (screen_width - 650) // 2
+    y = (screen_height - 550) // 2
+    root.geometry(f"650x550+{x}+{y}")
+    
+    # Поднятие окна на передний план
+    root.attributes('-topmost', True)
+    root.after(200, lambda: root.attributes('-topmost', False))
+    
     root.mainloop()
 
 

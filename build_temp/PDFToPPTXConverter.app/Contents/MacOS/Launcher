@@ -1,3 +1,6 @@
 #!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
-exec python3 "${SCRIPT_DIR}/pdf_to_pptx_gui.py" "$@"
+# Устанавливаем переменные для скрытия Python из меню
+export PYAPP_NAME="PDFToPPTXConverter"
+export PYTHONNOUSERSITE=1
+exec python3 -W ignore "${SCRIPT_DIR}/pdf_to_pptx_gui.py" "$@"
