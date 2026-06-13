@@ -1,5 +1,4 @@
 ```
-build_temp/
-*.app
-.dmg
+__pycache__/
+*.pyc
 ```
