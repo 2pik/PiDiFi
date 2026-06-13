@@ -132,6 +132,10 @@ class PDFToPPTXConverter:
     def __init__(self, root):
         self.root = root
         
+        # Принудительно обновляем окно ПЕРЕД любыми операциями
+        self.root.update_idletasks()
+        self.root.update()
+        
         # Устанавливаем минимальный размер окна до создания виджетов
         self.root.minsize(650, 550)
         
@@ -151,10 +155,12 @@ class PDFToPPTXConverter:
         self.quality_var = tk.StringVar(value="Высокое")
         self.orientation_var = tk.StringVar(value="16:9")
         
-        # Принудительно обновляем окно перед созданием виджетов
-        self.root.update_idletasks()
-        
+        # Создаем виджеты
         self.create_widgets()
+        
+        # Еще одно обновление после создания всех виджетов
+        self.root.update_idletasks()
+        self.root.update()
     
     def create_widgets(self):
         # Настройка конфигурации grid для главного окна
@@ -633,16 +639,26 @@ class PDFToPPTXConverter:
         else:
             self.status_var.set(f"Страница {current} из {total}")
     
-    def conversion_complete(self, save_path):
+    def conversion_complete(self, save_paths, elapsed_time=0):
+        """Обработчик успешного завершения конвертации"""
         self.is_converting = False
         self.convert_btn.config(state="normal", text="Конвертировать")
         self.progress_var.set(100)
         self.status_var.set("Готово!")
         
-        messagebox.showinfo(
-            "Успешно!",
-            f"Файл успешно сконвертирован!\n\n{save_path}\n\nТеперь вы можете открыть его в PowerPoint или Keynote."
-        )
+        # Обработка одиночного пути или списка путей
+        if isinstance(save_paths, list):
+            if len(save_paths) == 1:
+                save_path = save_paths[0]
+                msg = f"Файл успешно сконвертирован за {elapsed_time:.1f}с!\n\n{save_path}\n\nТеперь вы можете открыть его в PowerPoint или Keynote."
+            else:
+                msg = f"Успешно сконвертировано файлов: {len(save_paths)}\n\nВремя: {elapsed_time:.1f}с\n\nФайлы сохранены:\n" + "\n".join(f"• {p}" for p in save_paths)
+        else:
+            save_path = str(save_paths)
+            msg = f"Файл успешно сконвертирован за {elapsed_time:.1f}с!\n\n{save_path}\n\nТеперь вы можете открыть его в PowerPoint или Keynote."
+        
+        logger.info(f"Конвертация завершена: {save_paths}")
+        messagebox.showinfo("Успешно!", msg)
     
     def conversion_error(self, error):
         self.is_converting = False

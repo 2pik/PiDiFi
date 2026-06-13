@@ -1,33 +1,35 @@
 ```
-# Build artifacts
+# Build artifacts and temporary files
 build_temp/
 *.app
 *.dmg
 *.pkg
 *.zip
+*.tar
+*.tar.gz
 
-# Dependencies
-node_modules/
-.venv/
-venv/
+# Python build artifacts
+*.pyc
 __pycache__/
+*.pyo
+*.pyd
+*.so
 *.egg-info/
 
-# Logs and temp files
-*.log
-*.tmp
-*.swp
+# Distribution files
+dist/
+build/
+*.egg
+*.whl
 
-# Environment
+# Environment files
+.venv/
+venv/
 .env
 .env.local
 *.env.*
 
-# Editors
-.vscode/
-.idea/
-
-# OS generated files
+# OS specific files
 .DS_Store
 Thumbs.db
 ```

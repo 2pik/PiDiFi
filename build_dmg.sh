@@ -121,12 +121,13 @@ export PYTHONNOUSERSITE=1
 export TK_SILENCE_DEPRECATION=1
 export PYTHONPATH="${RESOURCES_DIR}:${PYTHONPATH}"
 export PYTHONIOENCODING=utf-8
+export PYTHONVERBOSE=0
 
 # Переходим в домашнюю директорию чтобы избежать блокировки файлов
 cd $HOME
 
 # Запускаем приложение с правильной обработкой ошибок
-exec python3 -u "${RESOURCES_DIR}/pdf_to_pptx_gui.py" "$@" 2>&1 | tee "${RESOURCES_DIR}/launcher.log"
+exec python3 "${RESOURCES_DIR}/pdf_to_pptx_gui.py" "$@" 2>&1 | tee "${RESOURCES_DIR}/launcher.log"
 LAUNCHER
 chmod +x "${APP_BUNDLE}/Contents/MacOS/Launcher"
 
